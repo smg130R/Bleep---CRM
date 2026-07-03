@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+*.db
+*.bak
+*.log
+*.exe
+bleep-crm-*.json
+server/data/
+task.md
+walkthrough.md
+SUPABASE_INTEGRATION.md
