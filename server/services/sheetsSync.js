@@ -23,7 +23,7 @@ async function syncBdaSheet(userId, spreadsheetId, tab) {
     return true;
   }
   try {
-    const range = tab ? `${tab}!A2:G100` : 'Sheet1!A2:G100';
+    const range = tab ? `${tab}!A1:Z100` : 'Sheet1!A1:Z100';
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range,
@@ -31,21 +31,22 @@ async function syncBdaSheet(userId, spreadsheetId, tab) {
     const rows = response.data.values;
     if (!rows || rows.length === 0) return false;
 
+    const parsed = parseRowsWithHeaders(rows);
+    if (parsed.length === 0) return false;
+
     const today = new Date().toISOString().split('T')[0];
     await supabase.from('calling_sheet').delete().eq('assignedUserId', userId);
 
-    for (const row of rows) {
-      const [name, phone, college, branch, year, status, remarks] = row;
-      if (!name || !phone) continue;
+    for (const lead of parsed) {
       await supabase.from('calling_sheet').insert({
         assignedUserId: userId,
-        customerName: name,
-        contact: phone,
-        college: college || '',
-        branch: branch || '',
-        year: year || '',
-        status: status || 'Pending',
-        remarks: remarks || '',
+        customerName: lead.customerName,
+        contact: lead.contact,
+        college: lead.college || '',
+        branch: lead.branch || '',
+        year: lead.year || '',
+        status: 'Pending',
+        remarks: '',
         lastUpdated: today,
       });
     }
@@ -65,7 +66,7 @@ async function syncBdaProspects(userId, spreadsheetId, tab) {
     return true;
   }
   try {
-    const range = tab ? `${tab}!A2:H100` : 'Sheet1!A2:H100';
+    const range = tab ? `${tab}!A1:Z100` : 'Sheet1!A1:Z100';
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range,
@@ -73,21 +74,22 @@ async function syncBdaProspects(userId, spreadsheetId, tab) {
     const rows = response.data.values;
     if (!rows || rows.length === 0) return false;
 
+    const parsed = parseRowsWithHeaders(rows);
+    if (parsed.length === 0) return false;
+
     const today = new Date().toISOString().split('T')[0];
     await supabase.from('prospects').delete().eq('bdaId', userId);
 
-    for (const row of rows) {
-      const [name, phone, college, branch, year, status, remarks] = row;
-      if (!name || !phone) continue;
+    for (const lead of parsed) {
       await supabase.from('prospects').insert({
         bdaId: userId,
-        customerName: name,
-        contact: phone,
-        college: college || '',
-        branch: branch || '',
-        year: year || '',
-        status: status || 'Prospect',
-        remarks: remarks || '',
+        customerName: lead.customerName,
+        contact: lead.contact,
+        college: lead.college || '',
+        branch: lead.branch || '',
+        year: lead.year || '',
+        status: lead.status || 'Prospect',
+        remarks: lead.remarks || '',
         createdAt: today,
         updatedAt: today,
       });
@@ -129,6 +131,56 @@ async function runAllSyncs() {
   } catch (err) {
     console.error('Sync job failed:', err);
   }
+}
+
+// Smart column mapping: detect columns by header name
+const COLUMN_ALIASES = {
+  customerName: ['name', 'customer name', 'customer', 'student name', 'student', 'full name', 'candidate name', 'candidate', 'prospect name', 'prospect'],
+  contact: ['contact', 'phone', 'mobile', 'phone number', 'mobile number', 'cell', 'number', 'tel', 'telephone', 'whatsapp'],
+  college: ['college', 'institute', 'university', 'school', 'college name', 'institution', 'academic institute'],
+  branch: ['branch', 'stream', 'course', 'department', 'major', 'specialization', 'discipline', 'field'],
+  year: ['year', 'academic year', 'year of study', 'semester', 'class', 'study year', 'current year', 'year/sem'],
+  status: ['status', 'stage', 'pipeline stage', 'current status', 'lead status', 'call status'],
+  remarks: ['remarks', 'remark', 'notes', 'note', 'comment', 'comments', 'feedback', 'observation', 'observations', 'note to self'],
+};
+
+function normalizeHeader(h) {
+  return (h || '').trim().toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
+}
+
+function detectColumnMap(headers) {
+  const map = {};
+  for (let i = 0; i < headers.length; i++) {
+    const h = normalizeHeader(headers[i]);
+    if (!h) continue;
+    for (const [field, aliases] of Object.entries(COLUMN_ALIASES)) {
+      if (aliases.some(a => normalizeHeader(a) === h)) {
+        map[field] = i;
+        break;
+      }
+    }
+  }
+  return map;
+}
+
+function parseRowsWithHeaders(rows) {
+  if (!rows || rows.length < 2) return [];
+  const headers = rows[0];
+  const map = detectColumnMap(headers);
+  if (map.customerName === undefined || map.contact === undefined) {
+    console.warn('Could not detect required columns (Name, Contact). Found headers:', headers.join(', '));
+    return [];
+  }
+
+  return rows.slice(1).map(row => ({
+    customerName: (row[map.customerName] || '').trim(),
+    contact: (row[map.contact] || '').trim(),
+    college: map.college !== undefined ? (row[map.college] || '').trim() : '',
+    branch: map.branch !== undefined ? (row[map.branch] || '').trim() : '',
+    year: map.year !== undefined ? (row[map.year] || '').trim() : '',
+    status: map.status !== undefined ? (row[map.status] || '').trim() : '',
+    remarks: map.remarks !== undefined ? (row[map.remarks] || '').trim() : '',
+  })).filter(l => l.customerName && l.contact);
 }
 
 // Extract spreadsheet ID from a Google Sheets URL
@@ -195,7 +247,7 @@ async function importLeadsFromMasterSheet(spreadsheetId, tab = 'Sheet1') {
     return [];
   }
   try {
-    const range = `${tab}!A2:E1000`;
+    const range = `${tab}!A1:Z1000`;
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range,
@@ -206,14 +258,7 @@ async function importLeadsFromMasterSheet(spreadsheetId, tab = 'Sheet1') {
       return [];
     }
 
-    const leads = rows.map(row => ({
-      customerName: (row[0] || '').trim(),
-      contact: (row[1] || '').trim(),
-      college: (row[2] || '').trim(),
-      branch: (row[3] || '').trim(),
-      year: (row[4] || '').trim(),
-    })).filter(l => l.customerName && l.contact);
-
+    const leads = parseRowsWithHeaders(rows);
     console.log(`Read ${leads.length} leads from master sheet`);
     return leads;
   } catch (error) {

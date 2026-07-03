@@ -221,7 +221,7 @@ const TeamLeadWorkspace = ({ showToast }) => {
           </button>
         </div>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-          Import reads columns A-E (Name, Contact, College, Branch, Year) from row 2 onwards of the master sheet.
+          Auto-detects columns by header name (Name, Contact/Phone, College, Branch, Year, etc.). Extra columns ignored.
         </p>
       </div>
 
