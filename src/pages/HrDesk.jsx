@@ -206,7 +206,7 @@ const HrDesk = ({ showToast }) => {
                   ) : (
                     leaves.map((l) => (
                       <tr key={l.id}>
-                        <td>EMP-{String(l.employeeId).padStart(3, '0')}</td>
+                        <td>{l.employeeCode || ('EMP-' + String(l.employeeId).padStart(3, '0'))}</td>
                         <td style={{ fontWeight: 600, color: 'var(--primary-navy)' }}>{l.employeeName || user.name}</td>
                         <td>{l.leaveType}</td>
                         <td style={{ fontSize: '0.825rem' }}>{l.fromDate} to {l.toDate}</td>

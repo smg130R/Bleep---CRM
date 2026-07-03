@@ -313,4 +313,103 @@ router.get('/board-all', authenticateToken, async (req, res) => {
   }
 });
 
+// GET /api/kpi/teams-breakdown - Per-team aggregated stats for chart
+router.get('/teams-breakdown', authenticateToken, async (req, res) => {
+  const dateFilter = req.query.date || new Date().toISOString().split('T')[0];
+  try {
+    const { data: teams } = await supabase.from('teams').select('id, name');
+    if (!teams) return res.json({ teams: [] });
+
+    const result = [];
+    for (const team of teams) {
+      const { data: bdas } = await supabase.from('users').select('id').eq('role', 'bda').eq('teamId', team.id);
+      const ids = (bdas || []).map(b => b.id);
+      if (ids.length === 0) continue;
+
+      const { data: rows } = await supabase
+        .from('kpi_records')
+        .select('mCalls, eCalls, mConn, eConn, deals, perfScore')
+        .eq('date', dateFilter)
+        .in('userId', ids);
+
+      let calls = 0, connects = 0, deals = 0, score = 0;
+      (rows || []).forEach(r => {
+        calls += (r.mCalls || 0) + (r.eCalls || 0);
+        connects += (r.mConn || 0) + (r.eConn || 0);
+        deals += r.deals || 0;
+        score += r.perfScore || 0;
+      });
+
+      result.push({
+        id: team.id,
+        name: team.name,
+        calls,
+        connects,
+        deals,
+        score: rows?.length ? parseFloat((score / rows.length).toFixed(2)) : 0,
+        memberCount: ids.length,
+      });
+    }
+
+    // Also add a "by member" section for current team if TL
+    let breakdownBy;
+    if (req.user.role === 'team_lead' && req.user.teamId) {
+      const { data: bdas } = await supabase.from('users').select('id, name').eq('role', 'bda').eq('teamId', req.user.teamId);
+      const ids = (bdas || []).map(b => b.id);
+      const { data: rows } = await supabase
+        .from('kpi_records')
+        .select('userId, mCalls, eCalls, mConn, eConn, deals, perfScore')
+        .eq('date', dateFilter)
+        .in('userId', ids.length ? ids : [0]);
+      const kpiMap = {};
+      (rows || []).forEach(r => { kpiMap[r.userId] = r; });
+      breakdownBy = (bdas || []).map(b => {
+        const k = kpiMap[b.id] || {};
+        return { id: b.id, name: b.name, calls: (k.mCalls||0)+(k.eCalls||0), connects: (k.mConn||0)+(k.eConn||0), deals: k.deals||0, perfScore: k.perfScore||0 };
+      });
+    }
+
+    return res.json({ teams: result, breakdownBy });
+  } catch (error) {
+    console.error('Teams breakdown error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// GET /api/kpi/team-members/:teamId - Per-BDA stats within a team
+router.get('/team-members/:teamId', authenticateToken, async (req, res) => {
+  const { teamId } = req.params;
+  const dateFilter = req.query.date || new Date().toISOString().split('T')[0];
+  try {
+    const { data: bdas } = await supabase.from('users').select('id, name').eq('role', 'bda').eq('teamId', teamId);
+    if (!bdas || bdas.length === 0) return res.json({ members: [] });
+
+    const ids = bdas.map(b => b.id);
+    const { data: rows } = await supabase
+      .from('kpi_records')
+      .select('userId, mCalls, mConn, mSS, mPros, eCalls, eConn, eSS, ePros, deals, followups, perfScore')
+      .eq('date', dateFilter)
+      .in('userId', ids);
+
+    const kpiMap = {};
+    (rows || []).forEach(r => { kpiMap[r.userId] = r; });
+
+    const members = bdas.map(b => {
+      const k = kpiMap[b.id] || {};
+      return {
+        id: b.id,
+        name: b.name,
+        mCalls: k.mCalls ?? 0, mConn: k.mConn ?? 0, mSS: k.mSS ?? 0, mPros: k.mPros ?? 0,
+        eCalls: k.eCalls ?? 0, eConn: k.eConn ?? 0, eSS: k.eSS ?? 0, ePros: k.ePros ?? 0,
+        deals: k.deals ?? 0, followups: k.followups ?? 0, perfScore: k.perfScore ?? 0,
+      };
+    });
+
+    return res.json({ members });
+  } catch (error) {
+    console.error('Team members error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 module.exports = router;

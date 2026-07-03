@@ -128,7 +128,7 @@ const EmployeeMaster = ({ showToast }) => {
               ) : (
                 filteredEmployees.map((emp) => (
                   <tr key={emp.id}>
-                    <td style={{ fontWeight: 600, color: 'var(--primary-navy)' }}>EMP-{String(emp.id).padStart(3, '0')}</td>
+                    <td style={{ fontWeight: 600, color: 'var(--primary-navy)' }}>{emp.employeeCode || ('EMP-' + String(emp.id).padStart(3, '0'))}</td>
                     <td>
                       <div className="table-user-cell">
                         <div className="table-user-avatar">

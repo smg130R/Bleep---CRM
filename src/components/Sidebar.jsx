@@ -36,7 +36,7 @@ const Sidebar = ({ activePage, setActivePage, sidebarOpen, setSidebarOpen }) => 
 
   // Page permissions
   const permissions = {
-    admin: ['dashboard', 'kpi-board', 'team-structure', 'team-lead-workspace', 'employee-master', 'sales-calling', 'prospects', 'follow-ups', 'reports', 'hr-desk', 'settings'],
+    admin: ['dashboard', 'kpi-board', 'team-structure', 'employee-master', 'reports', 'hr-desk', 'settings'],
     ops_head: ['dashboard', 'kpi-board', 'team-structure', 'follow-ups', 'reports', 'settings'],
     hr: ['dashboard', 'employee-master', 'hr-desk', 'settings'],
     team_lead: ['dashboard', 'kpi-board', 'team-structure', 'employee-master', 'prospects', 'follow-ups', 'reports', 'team-lead-workspace'],

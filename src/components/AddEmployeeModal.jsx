@@ -15,6 +15,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onSave, currentRole }) => {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState(allowedRoles[0]?.value || 'bda');
   const [phone, setPhone] = useState('');
+  const [employeeCode, setEmployeeCode] = useState('');
   const [teamId, setTeamId] = useState('');
   const [teamName, setTeamName] = useState('');
   const [teams, setTeams] = useState([]);
@@ -25,6 +26,10 @@ const AddEmployeeModal = ({ isOpen, onClose, onSave, currentRole }) => {
         .then(r => r.ok ? r.json() : { teams: [] })
         .then(d => setTeams(d.teams || []))
         .catch(() => setTeams([]));
+      fetch('/api/employees/next-code')
+        .then(r => r.ok ? r.json() : { nextCode: '' })
+        .then(d => setEmployeeCode(d.nextCode || ''))
+        .catch(() => {});
     }
   }, [isOpen]);
 
@@ -36,7 +41,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onSave, currentRole }) => {
       alert('Name, email, password, and role are required.');
       return;
     }
-    const payload = { name, email, password, role, phone };
+    const payload = { name, email, password, role, phone, employeeCode };
     if (role === 'team_lead') {
       payload.teamName = teamName.trim() || null;
     } else {
@@ -48,6 +53,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onSave, currentRole }) => {
     setPassword('');
     setRole(allowedRoles[0]?.value || 'bda');
     setPhone('');
+    setEmployeeCode('');
     setTeamId('');
     setTeamName('');
   };
@@ -123,6 +129,17 @@ const AddEmployeeModal = ({ isOpen, onClose, onSave, currentRole }) => {
                   placeholder="Contact number"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+              />
+            </div>
+
+            <div className="input-group">
+              <label htmlFor="emp-code">Employee ID</label>
+              <input 
+                type="text" 
+                id="emp-code" 
+                placeholder="e.g. AD-001"
+                value={employeeCode}
+                onChange={(e) => setEmployeeCode(e.target.value)}
               />
             </div>
 

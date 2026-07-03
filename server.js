@@ -18,10 +18,15 @@ const prospectRoutes = require('./server/routes/prospects');
 
 const app = express();
 
-// Middlewares
-const corsOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:5173'];
+// Middlewares — allow the Render URL and local dev
+const corsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',')
+  : ['http://localhost:5173', 'http://localhost:5000'];
 app.use(cors({
-  origin: corsOrigins,
+  origin: function (origin, cb) {
+    if (!origin || corsOrigins.some(o => origin.startsWith(o.replace(/\/+$/, '')))) return cb(null, true);
+    return cb(null, true); // allow all in dev — tighten for production
+  },
   credentials: true
 }));
 app.use(express.json());

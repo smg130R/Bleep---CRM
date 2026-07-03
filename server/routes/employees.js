@@ -3,20 +3,53 @@ const router = express.Router();
 const supabase = require('../db/supabase');
 const { authenticateToken, requireRoles } = require('../middleware/auth');
 
-// GET /api/employees - All employees (Admin, HR, Ops Head)
-router.get('/', authenticateToken, requireRoles(['admin', 'hr', 'ops_head']), async (req, res) => {
+// GET /api/employees - All employees (Admin, HR, Ops Head, Team Lead)
+router.get('/', authenticateToken, requireRoles(['admin', 'hr', 'ops_head', 'team_lead']), async (req, res) => {
   try {
-    const { data: employees, error } = await supabase
-      .from('users')
-      .select('id, name, email, role, phone, teamId, joinedDate, status')
-      .order('role')
-      .order('name');
+    const fields = 'id, name, email, role, phone, teamId, joinedDate, status, employeeCode';
+    let query = supabase.from('users').select(fields);
 
-    if (error) throw error;
-    return res.json({ employees });
+    // Team leads only see their own team
+    if (req.user.role === 'team_lead') {
+      query = query.eq('teamId', req.user.teamId);
+    }
+
+    query = query.order('role').order('name');
+    const { data, error } = await query;
+
+    if (error) {
+      // employeeCode column may not exist yet — fall back
+      const fallbackFields = 'id, name, email, role, phone, teamId, joinedDate, status';
+      let fb = supabase.from('users').select(fallbackFields);
+      if (req.user.role === 'team_lead') fb = fb.eq('teamId', req.user.teamId);
+      const { data: fallback, error: fallbackErr } = await fb.order('role').order('name');
+      if (fallbackErr) throw fallbackErr;
+      return res.json({ employees: fallback });
+    }
+    return res.json({ employees: data });
   } catch (error) {
     console.error('Get employees error:', error);
     return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// GET /api/employees/next-code - Suggest next employee code
+router.get('/next-code', authenticateToken, async (req, res) => {
+  try {
+    const prefix = req.query.prefix || 'AD';
+    const { data: codes } = await supabase
+      .from('users')
+      .select('employeeCode')
+      .not('employeeCode', 'is', null)
+      .order('employeeCode', { ascending: false })
+      .limit(1);
+    const lastCode = codes?.[0]?.employeeCode || '';
+    const lastNum = parseInt(lastCode.replace(/^.*?(\d+)$/, '$1'), 10) || 0;
+    const nextCode = prefix + '-' + String(lastNum + 1).padStart(3, '0');
+    return res.json({ nextCode });
+  } catch (error) {
+    // If employeeCode column doesn't exist, return default
+    return res.json({ nextCode: 'AD-001' });
   }
 });
 
@@ -120,7 +153,7 @@ router.get('/teams/:teamId/bda-performance', authenticateToken, async (req, res)
 
 // POST /api/employees - Add new employee
 router.post('/', authenticateToken, requireRoles(['admin', 'hr', 'ops_head', 'team_lead']), async (req, res) => {
-  const { name, email, role, phone, teamId, teamName, password } = req.body;
+  const { name, email, role, phone, teamId, teamName, password, employeeCode } = req.body;
   if (!name || !email || !role || !password) {
     return res.status(400).json({ message: 'Name, email, role, and password are required.' });
   }
@@ -167,39 +200,77 @@ router.post('/', authenticateToken, requireRoles(['admin', 'hr', 'ops_head', 'te
       throw authError;
     }
 
-    // Create public.users row directly (the Supabase trigger may not exist)
-    const { data: newUser, error: insertErr } = await supabase
+    // The handle_new_user trigger already inserted the row; fetch it
+    const { data: existing, error: fetchErr } = await supabase
       .from('users')
-      .insert({
-        name,
-        email,
-        role,
-        phone: phone || null,
-        teamId: teamId || null,
-        status: 'active',
-        authId: authData.user.id
-      })
       .select('id')
-      .limit(1);
+      .eq('authId', authData.user.id);
 
-    if (insertErr) {
-      console.error('Insert user row error:', insertErr.message);
-      return res.status(500).json({ message: 'Failed to create user record.' });
+    let userRow;
+    if (!fetchErr && existing && existing.length > 0) {
+      userRow = existing[0];
+    } else {
+      // Trigger may not exist — insert manually
+      const { data: newUser, error: insertErr } = await supabase
+        .from('users')
+        .insert({
+          name,
+          email,
+          role,
+          phone: phone || null,
+          teamId: teamId || null,
+          status: 'active',
+          authId: authData.user.id
+        })
+        .select('id')
+        .limit(1);
+
+      if (insertErr) {
+        console.error('Insert user row error:', insertErr.message);
+        return res.status(500).json({ message: 'Failed to create user record.' });
+      }
+      userRow = newUser[0];
     }
 
+    const newUserId = userRow.id;
+
+    // Assign employeeCode (or auto-generate if not provided)
+    let code = employeeCode;
+    if (!code) {
+      const { data: codes, error: codeErr } = await supabase
+        .from('users')
+        .select('employeeCode')
+        .not('employeeCode', 'is', null)
+        .order('employeeCode', { ascending: false })
+        .limit(1);
+      if (codeErr) {
+        console.error('Fetch max employeeCode error:', codeErr.message);
+        code = 'AD-001';
+      } else {
+        const last = codes?.[0]?.employeeCode || '';
+        const n = parseInt(last.replace(/^.*?(\d+)$/, '$1'), 10) || 0;
+        code = 'AD-' + String(n + 1).padStart(3, '0');
+      }
+    }
+    const { error: updateErr } = await supabase
+      .from('users')
+      .update({ employeeCode: code })
+      .eq('id', newUserId);
+    if (updateErr) console.error('Assign employeeCode error:', updateErr.message);
+
     // If creating a team lead with a team name, create the team record
-    if (role === 'team_lead' && req.body.teamName && newUser?.[0]) {
+    if (role === 'team_lead' && req.body.teamName && newUserId) {
       const teamId = req.body.teamName.replace(/\s+/g, '');
       const { error: teamErr } = await supabase.from('teams').insert({
         id: teamId,
         name: req.body.teamName,
-        leadId: newUser[0].id
+        leadId: newUserId
       });
 
       if (teamErr) {
         console.error('Create team error:', teamErr.message);
       } else {
-        await supabase.from('users').update({ teamId }).eq('id', newUser[0].id);
+        await supabase.from('users').update({ teamId }).eq('id', newUserId);
       }
     }
 

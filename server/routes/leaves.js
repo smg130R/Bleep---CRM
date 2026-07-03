@@ -9,7 +9,7 @@ router.get('/', authenticateToken, async (req, res) => {
   try {
     let query = supabase
       .from('leaves')
-      .select('*, users(name, role, teamId)');
+      .select('*, users(name, role, teamId, employeeCode)');
 
     if (req.user.role === 'admin' || req.user.role === 'hr') {
       // View all leaves
@@ -27,7 +27,8 @@ router.get('/', authenticateToken, async (req, res) => {
       ...l,
       employeeName: l.users?.name || null,
       employeeRole: l.users?.role || null,
-      teamId: l.users?.teamId || null
+      teamId: l.users?.teamId || null,
+      employeeCode: l.users?.employeeCode || null
     }));
 
     return res.json({ leaves: shaped });
