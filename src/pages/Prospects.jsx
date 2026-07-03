@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { UserPlus, Save, ExternalLink, DollarSign, TrendingUp, Users, CreditCard } from 'lucide-react';
+import { UserPlus, Save, ExternalLink, DollarSign, TrendingUp, Users, CreditCard, RefreshCw } from 'lucide-react';
 
 const statusOptions = ['Prospect', 'Follow-up', 'NA', 'NI', 'Call Back', 'Registration Done', 'Converted', 'Lost'];
 const paymentOptions = ['pending', 'slot_booking', 'partial_paid', 'fully_paid', 'cancelled'];
@@ -34,6 +34,7 @@ const Prospects = ({ showToast }) => {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [sheetUrls, setSheetUrls] = useState({ assignedSheetUrl: '', prospectSheetUrl: '' });
+  const [syncing, setSyncing] = useState(false);
 
   const emptyForm = { customerName: '', contact: '', email: '', college: '', branch: '', year: '', domain: '', month: '', experience: '', state: '', status: 'Prospect', remarks: '', payment_status: 'pending', slot_amount: '', amount_paid: '' };
   const [form, setForm] = useState(emptyForm);
@@ -84,8 +85,10 @@ const Prospects = ({ showToast }) => {
         setForm(emptyForm);
         fetchProspects();
       } else {
-        const err = await res.json();
-        showToast(err.message || 'Failed.', true);
+        try {
+          const err = await res.json();
+          showToast(err.message || 'Failed.', true);
+        } catch { showToast('Request failed', true); }
       }
     } catch { showToast('Connection error', true); }
   };
@@ -125,10 +128,36 @@ const Prospects = ({ showToast }) => {
         setEditingId(null);
         fetchProspects();
       } else {
-        const err = await res.json();
-        showToast(err.message || 'Failed.', true);
+        try {
+          const err = await res.json();
+          showToast(err.message || 'Failed.', true);
+        } catch { showToast('Request failed', true); }
       }
     } catch { showToast('Connection error', true); }
+  };
+
+  const syncFromSheet = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/prospects/sync', { method: 'POST' });
+      if (res.ok) {
+        showToast('Synced from sheet successfully!');
+        fetchProspects();
+      } else {
+        try {
+          const err = await res.json();
+          showToast(err.message || 'Sync failed. Make sure your prospect sheet is shared with the service account.', true);
+        } catch {
+          const text = await res.text();
+          showToast(text || 'Sync failed (unknown error)', true);
+        }
+      }
+    } catch (e) {
+      console.error('Sync error:', e);
+      showToast('Connection error: ' + e.message, true);
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const openSheet = (url) => {
@@ -200,9 +229,14 @@ const Prospects = ({ showToast }) => {
             </select>
           </div>
           {user.role === 'bda' && (
-            <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-              <UserPlus size={14} /> {showForm ? 'Cancel' : 'Add Prospect'}
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="btn btn-secondary" onClick={syncFromSheet} disabled={syncing}>
+                <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} /> {syncing ? 'Syncing...' : 'Refresh from Sheet'}
+              </button>
+              <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
+                <UserPlus size={14} /> {showForm ? 'Cancel' : 'Add Prospect'}
+              </button>
+            </div>
           )}
         </div>
 

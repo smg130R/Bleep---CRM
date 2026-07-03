@@ -201,4 +201,67 @@ router.patch('/:id', authenticateToken, requireRoles(['bda']), async (req, res) 
   }
 });
 
+// POST /api/calling/fetch-leads - BDA fetches 50 unassigned leads from the team pool
+router.post('/fetch-leads', authenticateToken, requireRoles(['bda']), async (req, res) => {
+  try {
+    const bdaId = req.user.id;
+    const teamId = req.user.teamId;
+
+    if (!teamId) {
+      return res.status(400).json({ message: 'You are not assigned to a team.' });
+    }
+
+    const { data: unassigned, error: fetchError } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('teamId', teamId)
+      .eq('status', 'unassigned')
+      .order('id')
+      .limit(50);
+
+    if (fetchError) throw fetchError;
+    if (!unassigned || unassigned.length === 0) {
+      return res.json({ message: 'No new leads available right now.', count: 0 });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const leadIds = unassigned.map(l => l.id);
+
+    const { error: updateError } = await supabase
+      .from('leads')
+      .update({ status: 'assigned', currentAssigneeId: bdaId, updatedAt: today })
+      .in('id', leadIds);
+
+    if (updateError) throw updateError;
+
+    const callingEntries = unassigned.map(lead => ({
+      assignedUserId: bdaId,
+      leadId: lead.id,
+      customerName: lead.customerName,
+      contact: lead.contact,
+      college: lead.college || '',
+      branch: lead.branch || '',
+      year: lead.year || '',
+      status: 'Pending',
+      naCount: lead.naCount || 0,
+      remarks: '',
+      lastUpdated: today,
+    }));
+
+    const { error: insertError } = await supabase
+      .from('calling_sheet')
+      .insert(callingEntries);
+
+    if (insertError) throw insertError;
+
+    return res.json({
+      message: `Fetched ${unassigned.length} new leads.`,
+      count: unassigned.length,
+    });
+  } catch (error) {
+    console.error('Fetch leads error:', error);
+    return res.status(500).json({ message: 'Error fetching leads: ' + error.message });
+  }
+});
+
 module.exports = router;

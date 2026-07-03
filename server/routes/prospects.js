@@ -159,6 +159,9 @@ router.get('/bda-sheets', authenticateToken, requireRoles(['bda', 'team_lead', '
   }
 });
 
+// GET /api/prospects/ping - health check for this route file
+router.get('/ping', (req, res) => res.json({ ok: true, version: 2 }));
+
 // GET /api/prospects/stats - Payment/collection stats for BDA dashboard
 router.get('/stats', authenticateToken, requireRoles(['bda', 'team_lead', 'admin']), async (req, res) => {
   try {
@@ -191,6 +194,34 @@ router.get('/stats', authenticateToken, requireRoles(['bda', 'team_lead', 'admin
   } catch (error) {
     console.error('Prospect stats error:', error);
     return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// POST /api/prospects/sync - Manually sync prospects from BDA's Google Sheet
+router.post('/sync', authenticateToken, requireRoles(['bda', 'team_lead', 'admin']), async (req, res) => {
+  console.log('[/api/prospects/sync] called by user', req.user.id, req.user.name);
+  try {
+    const targetUserId = req.user.role === 'bda' ? req.user.id : (req.body.userId || req.user.id);
+    console.log('[/api/prospects/sync] targetUserId:', targetUserId);
+    const { data: user } = await supabase.from('users').select('id, "prospectSheetUrl", "prospectSheetTab"').eq('id', targetUserId).limit(1).maybeSingle();
+    console.log('[/api/prospects/sync] user record:', JSON.stringify(user));
+
+    if (!user || !user.prospectSheetUrl) {
+      return res.status(400).json({ message: 'No prospect sheet URL configured. Set it up in your profile first.' });
+    }
+
+    const { syncBdaProspects, extractSheetId } = require('../services/sheetsSync');
+    const sheetId = extractSheetId(user.prospectSheetUrl);
+    const result = await syncBdaProspects(targetUserId, sheetId, user.prospectSheetTab || 'Sheet1');
+
+    if (result) {
+      return res.json({ message: 'Prospects synced from sheet successfully.' });
+    } else {
+      return res.status(400).json({ message: 'No data found in the prospect sheet. Make sure the sheet has a header row (Name, Contact, etc.) and at least one data row.' });
+    }
+  } catch (error) {
+    console.error('Sync prospects error:', error);
+    return res.status(500).json({ message: 'Error syncing from sheet: ' + error.message });
   }
 });
 

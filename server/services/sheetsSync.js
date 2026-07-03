@@ -17,7 +17,13 @@ async function getSheetsClient() {
 
 // Sync a BDA's assigned leads sheet into calling_sheet
 async function syncBdaSheet(userId, spreadsheetId, tab) {
-  const sheets = await getSheetsClient();
+  let sheets;
+  try {
+    sheets = await getSheetsClient();
+  } catch (e) {
+    console.error(`Failed to init Sheets client for BDA ${userId}:`, e.message);
+    return false;
+  }
   if (!sheets || !spreadsheetId) {
     console.log(`[Simulated] Syncing assigned leads sheet for user ${userId}`);
     return true;
@@ -60,7 +66,13 @@ async function syncBdaSheet(userId, spreadsheetId, tab) {
 
 // Sync a BDA's prospect sheet into prospects table
 async function syncBdaProspects(userId, spreadsheetId, tab) {
-  const sheets = await getSheetsClient();
+  let sheets;
+  try {
+    sheets = await getSheetsClient();
+  } catch (e) {
+    console.error(`Failed to init Sheets client for BDA ${userId}:`, e.message);
+    return false;
+  }
   if (!sheets || !spreadsheetId) {
     console.log(`[Simulated] Syncing prospect sheet for user ${userId}`);
     return true;
@@ -145,15 +157,15 @@ async function runAllSyncs() {
 // Smart column mapping: detect columns by header name
 const COLUMN_ALIASES = {
   customerName: ['name', 'customer name', 'customer', 'student name', 'student', 'full name', 'candidate name', 'candidate', 'prospect name', 'prospect'],
-  contact: ['contact', 'phone', 'mobile', 'phone number', 'mobile number', 'cell', 'number', 'tel', 'telephone', 'whatsapp'],
-  email: ['email', 'e-mail', 'mail', 'email id', 'email address'],
-  college: ['college', 'institute', 'university', 'school', 'college name', 'institution', 'academic institute'],
-  branch: ['branch', 'stream', 'course', 'department', 'major', 'specialization', 'discipline', 'field'],
-  year: ['year', 'academic year', 'year of study', 'semester', 'class', 'study year', 'current year', 'year/sem'],
-  domain: ['domain choosed', 'domain', 'domain chosen', 'course domain', 'chosen domain', 'preferred domain', 'area of interest'],
-  month: ['month', 'joining month', 'start month', 'batch month', 'month of joining'],
-  experience: ['experience', 'years of experience', 'work experience', 'exp', 'previous experience'],
-  state: ['state', 'location', 'city', 'region', 'province', 'address state'],
+  contact: ['contact', 'contact number', 'phone', 'phone number', 'mobile', 'mobile number', 'whatsapp', 'whatsapp number', 'cell', 'number', 'tel', 'telephone'],
+  email: ['email', 'email id', 'e mail id', 'e mail', 'email address', 'mail', 'mail id'],
+  college: ['college', 'college name', 'institute', 'university', 'school', 'institution', 'academic institute'],
+  branch: ['branch', 'branch department', 'stream', 'course', 'department', 'major', 'specialization', 'discipline', 'field'],
+  year: ['year', 'year of study', 'academic year', 'semester', 'class', 'study year', 'current year', 'year sem'],
+  domain: ['domain', 'domains offered', 'domain offered', 'preferred domain', 'domains', 'domain choosed', 'domain chosen', 'course domain', 'chosen domain', 'area of interest'],
+  month: ['month', 'preferred month of joining', 'month of joining', 'joining month', 'start month', 'batch month'],
+  experience: ['experience', 'experience level', 'years of experience', 'work experience', 'exp', 'previous experience'],
+  state: ['state', 'home state', 'location', 'city', 'region', 'province', 'address state'],
   status: ['status', 'stage', 'pipeline stage', 'current status', 'lead status', 'call status', 'prospect status'],
   payment_status: ['payment status', 'payment', 'fee status', 'payment stage', 'billing status'],
   slot_amount: ['slot amount', 'slot booking amount', 'booking amount', 'registration fee', 'slot fee'],
@@ -167,13 +179,26 @@ function normalizeHeader(h) {
 }
 
 function detectColumnMap(headers) {
+  // Build flat list of (field, normalizedAlias) sorted by length descending
+  const sorted = [];
+  for (const [field, aliases] of Object.entries(COLUMN_ALIASES)) {
+    for (const alias of aliases) {
+      sorted.push({ field, norm: normalizeHeader(alias) });
+    }
+  }
+  sorted.sort((a, b) => b.norm.length - a.norm.length);
+
   const map = {};
   for (let i = 0; i < headers.length; i++) {
     const h = normalizeHeader(headers[i]);
     if (!h) continue;
-    for (const [field, aliases] of Object.entries(COLUMN_ALIASES)) {
-      if (aliases.some(a => normalizeHeader(a) === h)) {
-        map[field] = i;
+    for (const { field, norm } of sorted) {
+      if (norm.length < 3) continue;
+      if (h.includes(norm)) {
+        // Only map this field if not already assigned
+        if (map[field] === undefined) {
+          map[field] = i;
+        }
         break;
       }
     }
@@ -268,7 +293,13 @@ async function pushBdaLeadsToSheet(userId, spreadsheetId, tab) {
 
 // Import leads from a team's master Google Sheet into the leads table
 async function importLeadsFromMasterSheet(spreadsheetId, tab = 'Sheet1') {
-  const sheets = await getSheetsClient();
+  let sheets;
+  try {
+    sheets = await getSheetsClient();
+  } catch (e) {
+    console.error('Failed to init Sheets client for master import:', e.message);
+    return [];
+  }
   if (!sheets || !spreadsheetId) {
     console.log('[Simulated] Reading master sheet for import');
     return [];
