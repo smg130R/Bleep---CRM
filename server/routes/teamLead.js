@@ -32,29 +32,30 @@ router.put('/config', authenticateToken, requireRoles(['team_lead', 'admin']), a
   }
 });
 
-// POST /api/team-lead/import - Import leads from master sheet
+// POST /api/team-lead/import - Import leads from master Google Sheet
 router.post('/import', authenticateToken, requireRoles(['team_lead', 'admin']), async (req, res) => {
   try {
     const teamId = req.user.teamId;
     if (!teamId) return res.status(400).json({ message: 'You are not assigned to a team.' });
 
-    const { leads } = req.body;
-    if (!leads || !Array.isArray(leads) || leads.length === 0) {
-      return res.status(400).json({ message: 'No leads provided.' });
+    const masterSheetUrl = await teamLeadData.getMasterSheetUrl(teamId);
+    if (!masterSheetUrl) {
+      return res.status(400).json({ message: 'No master sheet URL configured. Save your sheet URL first.' });
     }
 
-    // Validate leads
-    for (const lead of leads) {
-      if (!lead.customerName || !lead.contact) {
-        return res.status(400).json({ message: 'Each lead must have customerName and contact.' });
-      }
+    const { extractSheetId, importLeadsFromMasterSheet } = require('../services/sheetsSync');
+    const sheetId = extractSheetId(masterSheetUrl);
+    const leads = await importLeadsFromMasterSheet(sheetId);
+
+    if (leads.length === 0) {
+      return res.status(400).json({ message: 'No leads found in the master sheet. Check the sheet has data starting from row 2 (Name, Contact, College, Branch, Year).' });
     }
 
     const added = await teamLeadData.addLeads(teamId, leads);
-    return res.json({ message: `Imported ${added.length} new leads.`, added: added.length });
+    return res.json({ message: `Imported ${added.length} new leads from master sheet.`, added: added.length });
   } catch (error) {
     console.error('Import leads error:', error);
-    return res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({ message: 'Error reading master sheet: ' + error.message });
   }
 });
 

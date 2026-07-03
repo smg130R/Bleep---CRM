@@ -187,4 +187,39 @@ async function pushBdaLeadsToSheet(userId, spreadsheetId, tab) {
   }
 }
 
-module.exports = { startCronScheduler, runAllSyncs, syncBdaSheet, syncBdaProspects, pushBdaLeadsToSheet, extractSheetId };
+// Import leads from a team's master Google Sheet into the leads table
+async function importLeadsFromMasterSheet(spreadsheetId, tab = 'Sheet1') {
+  const sheets = await getSheetsClient();
+  if (!sheets || !spreadsheetId) {
+    console.log('[Simulated] Reading master sheet for import');
+    return [];
+  }
+  try {
+    const range = `${tab}!A2:E1000`;
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range,
+    });
+    const rows = response.data.values;
+    if (!rows || rows.length === 0) {
+      console.log('No data found in master sheet');
+      return [];
+    }
+
+    const leads = rows.map(row => ({
+      customerName: (row[0] || '').trim(),
+      contact: (row[1] || '').trim(),
+      college: (row[2] || '').trim(),
+      branch: (row[3] || '').trim(),
+      year: (row[4] || '').trim(),
+    })).filter(l => l.customerName && l.contact);
+
+    console.log(`Read ${leads.length} leads from master sheet`);
+    return leads;
+  } catch (error) {
+    console.error('Error reading master sheet:', error.message);
+    throw error;
+  }
+}
+
+module.exports = { startCronScheduler, runAllSyncs, syncBdaSheet, syncBdaProspects, pushBdaLeadsToSheet, extractSheetId, importLeadsFromMasterSheet };

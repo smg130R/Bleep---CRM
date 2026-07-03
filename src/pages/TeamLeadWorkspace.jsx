@@ -123,10 +123,18 @@ const TeamLeadWorkspace = ({ showToast }) => {
   };
 
   const handleImport = async () => {
-    showToast('Import feature requires Google Sheets API credentials configured on the server.');
-
-    // If credentials were configured, this would parse the sheet
-    // For now, show a manual entry option
+    try {
+      const res = await fetch('/api/team-lead/import', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message);
+        fetchLeads();
+      } else {
+        showToast(data.message || 'Import failed', true);
+      }
+    } catch (err) {
+      showToast('Connection error', true);
+    }
   };
 
   const handleDistribute = async () => {
@@ -208,12 +216,12 @@ const TeamLeadWorkspace = ({ showToast }) => {
           <button className="btn btn-primary" onClick={handleSaveUrl} style={{ whiteSpace: 'nowrap' }}>
             <CheckCircle size={14} /> Save URL
           </button>
-          <button className="btn btn-secondary" onClick={handleImport} disabled style={{ opacity: 0.6 }}>
+          <button className="btn btn-secondary" onClick={handleImport}>
             <Download size={14} /> Import
           </button>
         </div>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-          Set up Google Service Account credentials in .env to enable automatic import from the sheet.
+          Import reads columns A-E (Name, Contact, College, Branch, Year) from row 2 onwards of the master sheet.
         </p>
       </div>
 
