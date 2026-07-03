@@ -106,7 +106,7 @@ const Dashboard = ({ dateFilter }) => {
     labels: chartData.length ? chartData.map(c => c.date.split('-').slice(1).join('/')) : [],
     datasets: [
       {
-        label: "Sales Calls",
+        label: "Marketing Calls",
         data: chartData.length ? chartData.map(c => c.totalCalls) : [],
         borderColor: "#3b82f6",
         backgroundColor: "rgba(59, 130, 246, 0.05)",

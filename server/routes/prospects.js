@@ -77,6 +77,24 @@ router.post('/', authenticateToken, requireRoles(['bda', 'team_lead', 'admin']),
     }).select().single();
 
     if (error) throw error;
+
+    // Auto-create followup if prospect created with Follow-up or Call Back status
+    const finalStatus = status || 'Prospect';
+    if (['Follow-up', 'Call Back'].includes(finalStatus) && data) {
+      const fDate = new Date();
+      fDate.setDate(fDate.getDate() + (finalStatus === 'Call Back' ? 1 : 3));
+      await supabase.from('followups').insert({
+        bdaId: data.bdaId,
+        customerName: data.customerName,
+        contact: data.contact,
+        college: data.college || '',
+        date: fDate.toISOString().split('T')[0],
+        priority: finalStatus === 'Call Back' ? 'High' : 'Medium',
+        status: 'Pending',
+        remarks: `Auto-created from prospect status: ${finalStatus}`
+      });
+    }
+
     return res.status(201).json({ prospect: data, message: 'Prospect added.' });
   } catch (error) {
     console.error('Add prospect error:', error);
@@ -91,6 +109,12 @@ router.patch('/:id', authenticateToken, requireRoles(['bda', 'team_lead', 'admin
 
   try {
     const today = new Date().toISOString().split('T')[0];
+
+    // Fetch current prospect data (needed for followup creation below)
+    const { data: existingProspect, error: fetchErr } = await supabase.from('prospects').select('bdaId, customerName, contact, college, slot_amount, amount_paid, status').eq('id', id).limit(1).maybeSingle();
+    if (fetchErr) throw fetchErr;
+    if (!existingProspect) return res.status(404).json({ message: 'Prospect not found' });
+
     const updates = { updatedAt: today };
     if (status) updates.status = status;
     if (remarks !== undefined) updates.remarks = remarks;
@@ -107,10 +131,8 @@ router.patch('/:id', authenticateToken, requireRoles(['bda', 'team_lead', 'admin
     if (year !== undefined) updates.year = year;
 
     if (slot_amount !== undefined || amount_paid !== undefined) {
-      // Recalculate remaining
-      const { data: existing } = await supabase.from('prospects').select('slot_amount, amount_paid').eq('id', id).limit(1).maybeSingle();
-      const newSlot = slot_amount !== undefined ? parseFloat(slot_amount) : (existing?.slot_amount || 0);
-      const newPaid = amount_paid !== undefined ? parseFloat(amount_paid) : (existing?.amount_paid || 0);
+      const newSlot = slot_amount !== undefined ? parseFloat(slot_amount) : (existingProspect.slot_amount || 0);
+      const newPaid = amount_paid !== undefined ? parseFloat(amount_paid) : (existingProspect.amount_paid || 0);
       updates.slot_amount = newSlot;
       updates.amount_paid = newPaid;
       updates.remaining = Math.max(0, newSlot - newPaid);
@@ -121,6 +143,31 @@ router.patch('/:id', authenticateToken, requireRoles(['bda', 'team_lead', 'admin
 
     const { error } = await query;
     if (error) throw error;
+
+    // Auto-create followup when status is Follow-up or Call Back
+    if (updates.status && ['Follow-up', 'Call Back'].includes(updates.status)) {
+      const finalName = customerName !== undefined ? customerName : existingProspect.customerName;
+      const finalContact = contact !== undefined ? contact : existingProspect.contact;
+      const finalCollege = college !== undefined ? college : existingProspect.college;
+
+      const { data: existingFollowup } = await supabase.from('followups').select('id').eq('bdaId', existingProspect.bdaId).eq('customerName', finalName).eq('contact', finalContact).limit(1).maybeSingle();
+
+      if (!existingFollowup) {
+        const fDate = new Date();
+        fDate.setDate(fDate.getDate() + (updates.status === 'Call Back' ? 1 : 3));
+        await supabase.from('followups').insert({
+          bdaId: existingProspect.bdaId,
+          customerName: finalName,
+          contact: finalContact,
+          college: finalCollege,
+          date: fDate.toISOString().split('T')[0],
+          priority: updates.status === 'Call Back' ? 'High' : 'Medium',
+          status: 'Pending',
+          remarks: `Auto-created from prospect status: ${updates.status}`
+        });
+      }
+    }
+
     return res.json({ message: 'Prospect updated.' });
   } catch (error) {
     console.error('Update prospect error:', error);

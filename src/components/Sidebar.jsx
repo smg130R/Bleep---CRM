@@ -40,7 +40,7 @@ const Sidebar = ({ activePage, setActivePage, sidebarOpen, setSidebarOpen }) => 
     ops_head: ['dashboard', 'kpi-board', 'team-structure', 'follow-ups', 'reports', 'settings'],
     hr: ['dashboard', 'employee-master', 'hr-desk', 'settings'],
     team_lead: ['dashboard', 'kpi-board', 'team-structure', 'employee-master', 'prospects', 'follow-ups', 'reports', 'team-lead-workspace'],
-    bda: ['dashboard', 'sales-calling', 'follow-ups', 'prospects']
+    bda: ['dashboard', 'marketing-calling', 'follow-ups', 'prospects']
   };
 
   const allowedPages = permissions[currentRole] || ['dashboard'];
@@ -51,7 +51,7 @@ const Sidebar = ({ activePage, setActivePage, sidebarOpen, setSidebarOpen }) => 
     { id: 'team-structure', name: 'Team Structure', icon: Network },
     { id: 'team-lead-workspace', name: 'Lead Workspace', icon: ClipboardList },
     { id: 'employee-master', name: 'Employee Master', icon: Users },
-    { id: 'sales-calling', name: 'Sales Calling', icon: PhoneCall },
+    { id: 'marketing-calling', name: 'Marketing Calls', icon: PhoneCall },
     { id: 'prospects', name: 'Prospects', icon: Target },
     { id: 'follow-ups', name: 'Follow-ups', icon: CalendarDays },
     { id: 'reports', name: 'Reports', icon: BarChart3 },

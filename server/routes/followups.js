@@ -26,6 +26,59 @@ router.get('/', authenticateToken, async (req, res) => {
       bdaName: f.users?.name || null
     }));
 
+    // Backfill: ensure every prospect with Follow-up/Call Back status has a followup record
+    if (['bda', 'team_lead'].includes(req.user.role)) {
+      let backfillQuery = supabase.from('prospects').select('id, "bdaId", "customerName", contact, college, status');
+
+      if (req.user.role === 'bda') {
+        backfillQuery = backfillQuery.eq('bdaId', req.user.id);
+      } else if (req.user.role === 'team_lead') {
+        const { data: bdas } = await supabase.from('users').select('id').eq('teamId', req.user.teamId).eq('role', 'bda');
+        const ids = (bdas || []).map(b => b.id);
+        backfillQuery = backfillQuery.in('bdaId', ids.length ? ids : [0]);
+      }
+
+      const { data: prospects } = await backfillQuery.in('status', ['Follow-up', 'Call Back']);
+
+      let backfilled = false;
+      if (prospects && prospects.length > 0) {
+        for (const p of prospects) {
+          const exists = shaped.some(f => f.bdaId === p.bdaId && f.customerName === p.customerName && f.contact === p.contact);
+          if (!exists) {
+            const fDate = new Date();
+            fDate.setDate(fDate.getDate() + (p.status === 'Call Back' ? 1 : 3));
+            const { error: insErr } = await supabase.from('followups').insert({
+              bdaId: p.bdaId,
+              customerName: p.customerName,
+              contact: p.contact,
+              college: p.college || '',
+              date: fDate.toISOString().split('T')[0],
+              priority: p.status === 'Call Back' ? 'High' : 'Medium',
+              status: 'Pending',
+              remarks: `Auto-created from prospect status: ${p.status}`
+            });
+            if (!insErr) backfilled = true;
+          }
+        }
+      }
+
+      // Re-fetch if we backfilled anything to get proper join data
+      if (backfilled) {
+        let refetch = supabase.from('followups').select('*, users(name)');
+        if (req.user.role === 'bda') {
+          refetch = refetch.eq('bdaId', req.user.id);
+        } else if (req.user.role === 'team_lead') {
+          refetch = refetch.eq('users.teamId', req.user.teamId);
+        }
+        const { data: updatedList } = await refetch.order('date', { ascending: true });
+        if (updatedList) {
+          return res.json({
+            followups: updatedList.map(f => ({ ...f, bdaName: f.users?.name || null }))
+          });
+        }
+      }
+    }
+
     return res.json({ followups: shaped });
   } catch (error) {
     console.error('Get followups error:', error);

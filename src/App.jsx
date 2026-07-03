@@ -9,7 +9,7 @@ import Dashboard from './pages/Dashboard';
 import KpiBoard from './pages/KpiBoard';
 import TeamStructure from './pages/TeamStructure';
 import EmployeeMaster from './pages/EmployeeMaster';
-import SalesCalling from './pages/SalesCalling';
+import MarketingCalling from './pages/MarketingCalling';
 import Prospects from './pages/Prospects';
 import Followups from './pages/Followups';
 import Reports from './pages/Reports';
@@ -95,7 +95,7 @@ const MainApp = () => {
           {activePage === 'kpi-board' && <KpiBoard dateFilter={dateFilter} showToast={showToast} />}
           {activePage === 'team-structure' && <TeamStructure showToast={showToast} />}
           {activePage === 'employee-master' && <EmployeeMaster showToast={showToast} />}
-          {activePage === 'sales-calling' && <SalesCalling showToast={showToast} />}
+          {activePage === 'sales-calling' && <MarketingCalling showToast={showToast} />}
           {activePage === 'prospects' && <Prospects showToast={showToast} />}
           {activePage === 'follow-ups' && <Followups showToast={showToast} />}
           {activePage === 'reports' && <Reports />}

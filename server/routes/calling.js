@@ -3,7 +3,61 @@ const router = express.Router();
 const supabase = require('../db/supabase');
 const { authenticateToken, requireRoles } = require('../middleware/auth');
 
-// GET /api/calling - Get BDA's own calling sheet
+// Auto-detect and fix swapped fields in calling sheet rows
+function smartCleanRow(row) {
+  const r = { ...row };
+
+  // Heuristic: if customerName looks like an email, find the real name in another field
+  if (r.customerName && r.customerName.includes('@')) {
+    // Try college -> it often has the actual name
+    if (r.college && !r.college.includes('@') && !/^\d+$/.test(r.college.replace(/\s/g, ''))) {
+      [r.customerName, r.college] = [r.college, r.customerName];
+    }
+    // Try branch if college didn't work
+    else if (r.branch && !r.branch.includes('@') && !/^\d+$/.test(r.branch.replace(/\s/g, ''))) {
+      [r.customerName, r.branch] = [r.branch, r.customerName];
+    }
+  }
+
+  // Heuristic: if contact looks like a name/email (not 10+ digits), find the real number
+  const contactDigits = (r.contact || '').replace(/[\s\-\+\(\)]/g, '');
+  if (r.contact && (r.contact.includes('@') || contactDigits.length < 10 || isNaN(Number(contactDigits)))) {
+    for (const field of ['college', 'branch', 'year']) {
+      const val = (r[field] || '').replace(/[\s\-\+\(\)]/g, '');
+      if (val.length >= 10 && !isNaN(Number(val))) {
+        [r.contact, r[field]] = [r[field], r.contact];
+        break;
+      }
+    }
+  }
+
+  // Heuristic: if college has an email and branch has a college name, swap them
+  if (r.college && r.college.includes('@') && r.branch && !r.branch.includes('@')) {
+    const branchDigits = (r.branch || '').replace(/[\s\-\+\(\)]/g, '');
+    // Only swap if branch doesn't look like a phone number
+    if (branchDigits.length < 10 || isNaN(Number(branchDigits))) {
+      [r.college, r.branch] = [r.branch, r.college];
+    }
+  }
+
+  // Heuristic: if branch looks like a college name (not a dept/stream), swap with college
+  const branchLower = (r.branch || '').toLowerCase();
+  const collegeLower = (r.college || '').toLowerCase();
+  const streamKeywords = ['engineering', 'science', 'technology', 'computer', 'bca', 'bsc', 'bba', 'bcom', 'ba', 'management', 'mechanical', 'civil', 'electrical', 'electronics', 'information', 'cse', 'it', 'aiml', 'ece', 'eee', 'ai'];
+  const collegeKeywords = ['university', 'college', 'institute', 'school', 'academy', 'campus'];
+
+  if (collegeLower && branchLower) {
+    const branchLooksLikeCollege = collegeKeywords.some(k => branchLower.includes(k));
+    const collegeLooksLikeDept = streamKeywords.some(k => collegeLower.includes(k));
+    if (branchLooksLikeCollege && collegeLooksLikeDept) {
+      [r.college, r.branch] = [r.branch, r.college];
+    }
+  }
+
+  return r;
+}
+
+// GET /api/calling - Get BDA's own calling sheet (with smart field cleanup)
 router.get('/', authenticateToken, requireRoles(['bda']), async (req, res) => {
   try {
     const { data: list, error } = await supabase
@@ -13,7 +67,8 @@ router.get('/', authenticateToken, requireRoles(['bda']), async (req, res) => {
       .order('id', { ascending: true });
 
     if (error) throw error;
-    return res.json({ callingSheet: list });
+    const cleaned = (list || []).map(smartCleanRow);
+    return res.json({ callingSheet: cleaned });
   } catch (error) {
     console.error('Get calling sheet error:', error);
     return res.status(500).json({ message: 'Internal server error' });
@@ -44,6 +99,9 @@ router.patch('/:id', authenticateToken, requireRoles(['bda']), async (req, res) 
       return res.status(404).json({ message: 'Customer record not found or unauthorized.' });
     }
 
+    // Apply smart cleanup so lead matching uses corrected fields
+    const cleanCustomer = smartCleanRow(customer);
+
     // Update calling sheet
     await supabase
       .from('calling_sheet')
@@ -56,7 +114,7 @@ router.patch('/:id', authenticateToken, requireRoles(['bda']), async (req, res) 
         const teamLeadData = require('../services/teamLeadData');
         const leads = await teamLeadData.getLeads(req.user.teamId);
         const match = leads.find(l =>
-          l.customerName === customer.customerName && l.contact === customer.contact
+          l.customerName === cleanCustomer.customerName && l.contact === cleanCustomer.contact
         );
         if (match) {
           const newStatus = status.toLowerCase().replace(/\s+/g, '_');
@@ -97,7 +155,7 @@ router.patch('/:id', authenticateToken, requireRoles(['bda']), async (req, res) 
     let dealsCount = 0;
     let followupsCount = 0;
 
-    const connectStatuses = ['Connected', 'Interested', 'form_shared', 'screenshot_shared', 'Deal Closed'];
+    const connectStatuses = ['Connected', 'Interested', 'NI', 'FORM SHARED', 'SCREENSHOT SHARED', 'Deal Closed'];
     (allRecords || []).forEach(rec => {
       const s = rec.status;
       if (s !== 'Pending' && s !== 'unassigned') {
@@ -234,7 +292,10 @@ router.post('/fetch-leads', authenticateToken, requireRoles(['bda']), async (req
 
     if (updateError) throw updateError;
 
-    const callingEntries = unassigned.map(lead => ({
+    // Clean up swapped fields before inserting into calling_sheet
+    const cleanLeads = unassigned.map(lead => smartCleanRow(lead));
+
+    const callingEntries = cleanLeads.map(lead => ({
       assignedUserId: bdaId,
       leadId: lead.id,
       customerName: lead.customerName,
@@ -261,6 +322,84 @@ router.post('/fetch-leads', authenticateToken, requireRoles(['bda']), async (req
   } catch (error) {
     console.error('Fetch leads error:', error);
     return res.status(500).json({ message: 'Error fetching leads: ' + error.message });
+  }
+});
+
+// POST /api/calling/fix-data - Permanently fix swapped fields in existing calling sheet & leads
+router.post('/fix-data', authenticateToken, requireRoles(['bda', 'team_lead', 'admin']), async (req, res) => {
+  try {
+    const targetUserId = req.user.role === 'bda' ? req.user.id : (req.body.userId || req.user.id);
+    const today = new Date().toISOString().split('T')[0];
+    let fixedCalling = 0;
+    let fixedLeads = 0;
+
+    // Fix calling_sheet for this user
+    const { data: callingRows } = await supabase
+      .from('calling_sheet')
+      .select('*')
+      .eq('assignedUserId', targetUserId);
+
+    if (callingRows) {
+      for (const row of callingRows) {
+        const cleaned = smartCleanRow({ ...row });
+        const changed = cleaned.customerName !== row.customerName
+          || cleaned.contact !== row.contact
+          || cleaned.college !== (row.college || '')
+          || cleaned.branch !== (row.branch || '')
+          || cleaned.year !== (row.year || '');
+        if (changed) {
+          await supabase.from('calling_sheet').update({
+            customerName: cleaned.customerName,
+            contact: cleaned.contact,
+            college: cleaned.college || '',
+            branch: cleaned.branch || '',
+            year: cleaned.year || '',
+            lastUpdated: today,
+          }).eq('id', row.id);
+          fixedCalling++;
+        }
+      }
+    }
+
+    // Fix leads table (same user's assigned leads or team-wide for team_lead/admin)
+    let leadQuery = supabase.from('leads').select('*');
+    if (req.user.role === 'bda') {
+      leadQuery = leadQuery.eq('currentAssigneeId', targetUserId);
+    } else if (req.user.teamId) {
+      leadQuery = leadQuery.eq('teamId', req.user.teamId);
+    }
+    const { data: leadRows } = await leadQuery;
+
+    if (leadRows) {
+      for (const row of leadRows) {
+        const cleaned = smartCleanRow({ ...row });
+        const changed = cleaned.customerName !== row.customerName
+          || cleaned.contact !== row.contact
+          || cleaned.college !== (row.college || '')
+          || cleaned.branch !== (row.branch || '')
+          || cleaned.year !== (row.year || '');
+        if (changed) {
+          await supabase.from('leads').update({
+            customerName: cleaned.customerName,
+            contact: cleaned.contact,
+            college: cleaned.college || '',
+            branch: cleaned.branch || '',
+            year: cleaned.year || '',
+            updatedAt: today,
+          }).eq('id', row.id);
+          fixedLeads++;
+        }
+      }
+    }
+
+    return res.json({
+      message: `Fixed ${fixedCalling} calling sheet records and ${fixedLeads} leads.`,
+      fixedCalling,
+      fixedLeads,
+    });
+  } catch (error) {
+    console.error('Fix data error:', error);
+    return res.status(500).json({ message: 'Error fixing data: ' + error.message });
   }
 });
 

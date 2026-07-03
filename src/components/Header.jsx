@@ -14,7 +14,7 @@ const Header = ({ activePage, dateFilter, setDateFilter, onOpenComplaintModal })
     'team-structure': { title: "Team Structure", subtitle: "Company hierarchy tree & sales division cards" },
     'team-lead-workspace': { title: "Lead Workspace", subtitle: "Master sheet management & lead distribution" },
     'employee-master': { title: "Employee Master", subtitle: "Active company employee profiles & directory" },
-    'sales-calling': { title: "Sales Customer Calling Log", subtitle: "Assigned customer calling sheets" },
+    'marketing-calling': { title: "Marketing Calls", subtitle: "Assigned customer calling sheets" },
     'prospects': { title: "Prospect & Registration Log", subtitle: "Track registrations and prospect conversions" },
     'follow-ups': { title: "Customer Follow-ups", subtitle: "Schedules of pending callbacks & lead statuses" },
     reports: { title: "Visual Analytics Reports", subtitle: "Data visualizations, conversion ratios & export catalogs" },

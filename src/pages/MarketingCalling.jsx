@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { PhoneCall, Download, Filter } from 'lucide-react';
+import { PhoneCall, Download, Filter, RefreshCw } from 'lucide-react';
 
-const SalesCalling = ({ showToast }) => {
+const MarketingCalling = ({ showToast }) => {
   const [callingData, setCallingData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
+  const [fixing, setFixing] = useState(false);
   const [pendingOnly, setPendingOnly] = useState(true);
 
   const fetchCallingSheet = async () => {
@@ -68,6 +69,24 @@ const SalesCalling = ({ showToast }) => {
     }
   };
 
+  const fixData = async () => {
+    setFixing(true);
+    try {
+      const res = await fetch('/api/calling/fix-data', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message);
+        if (data.fixedCalling > 0 || data.fixedLeads > 0) fetchCallingSheet();
+      } else {
+        showToast(data.message || 'Failed to fix data.', true);
+      }
+    } catch {
+      showToast('Connection error while fixing data.', true);
+    } finally {
+      setFixing(false);
+    }
+  };
+
   const fetchLeads = async () => {
     setFetching(true);
     try {
@@ -95,7 +114,7 @@ const SalesCalling = ({ showToast }) => {
   const pendingCount = callingData.filter(r => r.status === 'Pending').length;
 
   return (
-    <div className="view-section active" id="sales-calling-view">
+    <div className="view-section active" id="marketing-calling-view">
       <div className="auth-badge" style={{ margin: '0 0 1.5rem 0' }}>
         <PhoneCall size={14} />
         <span>Click customer numbers to initiate mobile/softphone dialing via tel: protocol.</span>
@@ -113,6 +132,9 @@ const SalesCalling = ({ showToast }) => {
               style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}
             >
               <Filter size={12} /> {pendingOnly ? 'Pending Only' : 'All Leads'}
+            </button>
+            <button className="btn btn-secondary" onClick={fixData} disabled={fixing} style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>
+              <RefreshCw size={12} className={fixing ? 'animate-spin' : ''} /> {fixing ? 'Fixing...' : 'Fix Data'}
             </button>
           </div>
           <button className="btn btn-primary" onClick={fetchLeads} disabled={fetching}>

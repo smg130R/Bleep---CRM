@@ -146,7 +146,7 @@ const KpiBoard = ({ dateFilter, showToast }) => {
                 
                 {/* Totals */}
                 <th style={{ background: 'var(--accent-blue-light)' }}>Total Prospects</th>
-                <th>Sales Calls</th>
+                <th>Marketing Calls</th>
                 <th>Connected Calls</th>
                 <th>Payment Links</th>
                 <th style={{ background: 'var(--success-light)' }}>Deals Closed</th>
