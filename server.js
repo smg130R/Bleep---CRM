@@ -35,6 +35,9 @@ app.use(cookieParser());
 // Static files for production build (Vite dist)
 app.use(express.static(path.join(__dirname, 'dist')));
 
+// Health check for Render
+app.get('/healthz', (req, res) => res.status(200).send('OK'));
+
 // API Routes registration
 app.use('/api/auth', authRoutes);
 app.use('/api/employees', employeeRoutes);
