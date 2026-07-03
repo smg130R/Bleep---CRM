@@ -22,7 +22,8 @@ import {
   CreditCard,
   AlertTriangle,
   TrendingUp,
-  UserPlus2
+  DollarSign,
+  Users
 } from 'lucide-react';
 
 ChartJS.register(
@@ -53,6 +54,7 @@ const Dashboard = ({ dateFilter }) => {
   const [chartData, setChartData] = useState([]);
   const [lowPerformanceList, setLowPerformanceList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [paymentStats, setPaymentStats] = useState({ total: 0, slotBookingCount: 0, totalSlotAmount: 0, totalCollected: 0, totalOutstanding: 0 });
 
   const fetchDashboardData = async () => {
     try {
@@ -70,6 +72,13 @@ const Dashboard = ({ dateFilter }) => {
         const lbData = await lbRes.json();
         const lowBDAs = lbData.leaderboard.filter(bda => bda.perfScore < 40);
         setLowPerformanceList(lowBDAs);
+      }
+
+      // Fetch payment stats for BDA
+      const psRes = await fetch('/api/prospects/stats');
+      if (psRes.ok) {
+        const psData = await psRes.json();
+        setPaymentStats(psData);
       }
     } catch (err) {
       console.error('Error fetching dashboard stats:', err);
@@ -213,6 +222,30 @@ const Dashboard = ({ dateFilter }) => {
           </div>
         </div>
       </div>
+
+      {/* Payment Tracking for BDA */}
+      {isBDA && (
+        <div className="dashboard-grid" style={{ marginTop: '1.5rem' }}>
+          <div className="kpi-card blue">
+            <div className="kpi-card-header"><span className="kpi-card-title">Total Prospects</span><Users size={18} /></div>
+            <div className="kpi-card-value">{paymentStats.total}</div>
+          </div>
+          <div className="kpi-card green">
+            <div className="kpi-card-header"><span className="kpi-card-title">Slot Bookings</span><CreditCard size={18} /></div>
+            <div className="kpi-card-value">{paymentStats.slotBookingCount}</div>
+            <div className="kpi-card-footer">₹{(paymentStats.totalSlotAmount || 0).toLocaleString()} total</div>
+          </div>
+          <div className="kpi-card orange">
+            <div className="kpi-card-header"><span className="kpi-card-title">Amount Collected</span><DollarSign size={18} /></div>
+            <div className="kpi-card-value">₹{(paymentStats.totalCollected || 0).toLocaleString()}</div>
+          </div>
+          <div className="kpi-card red">
+            <div className="kpi-card-header"><span className="kpi-card-title">Outstanding</span><TrendingUp size={18} /></div>
+            <div className="kpi-card-value">₹{(paymentStats.totalOutstanding || 0).toLocaleString()}</div>
+            <div className="kpi-card-footer">pending collection</div>
+          </div>
+        </div>
+      )}
 
       {/* Main Charts & Analytics panel */}
       <div className="dashboard-charts-grid" style={{ marginTop: '2rem' }}>

@@ -43,22 +43,35 @@ router.get('/', authenticateToken, requireRoles(['bda', 'team_lead', 'admin']), 
 
 // POST /api/prospects - Add a prospect
 router.post('/', authenticateToken, requireRoles(['bda', 'team_lead', 'admin']), async (req, res) => {
-  const { customerName, contact, college, branch, year, status, remarks } = req.body;
+  const { customerName, contact, email, college, branch, year, domain, month, experience, state, status, remarks, payment_status, slot_amount, amount_paid } = req.body;
   if (!customerName || !contact) {
     return res.status(400).json({ message: 'Customer name and contact are required.' });
   }
 
   try {
     const today = new Date().toISOString().split('T')[0];
+    const slotAmt = parseFloat(slot_amount) || 0;
+    const paid = parseFloat(amount_paid) || 0;
+    const remaining = Math.max(0, slotAmt - paid);
+
     const { data, error } = await supabase.from('prospects').insert({
       bdaId: req.user.id,
       customerName,
       contact,
+      email: email || '',
       college: college || '',
       branch: branch || '',
       year: year || '',
+      domain: domain || '',
+      month: month || '',
+      experience: experience || '',
+      state: state || '',
       status: status || 'Prospect',
       remarks: remarks || '',
+      payment_status: payment_status || 'pending',
+      slot_amount: slotAmt,
+      amount_paid: paid,
+      remaining,
       createdAt: today,
       updatedAt: today,
     }).select().single();
@@ -74,13 +87,34 @@ router.post('/', authenticateToken, requireRoles(['bda', 'team_lead', 'admin']),
 // PATCH /api/prospects/:id - Update prospect
 router.patch('/:id', authenticateToken, requireRoles(['bda', 'team_lead', 'admin']), async (req, res) => {
   const { id } = req.params;
-  const { status, remarks } = req.body;
+  const { status, remarks, email, domain, month, experience, state, payment_status, slot_amount, amount_paid, customerName, contact, college, branch, year } = req.body;
 
   try {
     const today = new Date().toISOString().split('T')[0];
     const updates = { updatedAt: today };
     if (status) updates.status = status;
     if (remarks !== undefined) updates.remarks = remarks;
+    if (email !== undefined) updates.email = email;
+    if (domain !== undefined) updates.domain = domain;
+    if (month !== undefined) updates.month = month;
+    if (experience !== undefined) updates.experience = experience;
+    if (state !== undefined) updates.state = state;
+    if (payment_status !== undefined) updates.payment_status = payment_status;
+    if (customerName !== undefined) updates.customerName = customerName;
+    if (contact !== undefined) updates.contact = contact;
+    if (college !== undefined) updates.college = college;
+    if (branch !== undefined) updates.branch = branch;
+    if (year !== undefined) updates.year = year;
+
+    if (slot_amount !== undefined || amount_paid !== undefined) {
+      // Recalculate remaining
+      const { data: existing } = await supabase.from('prospects').select('slot_amount, amount_paid').eq('id', id).limit(1).maybeSingle();
+      const newSlot = slot_amount !== undefined ? parseFloat(slot_amount) : (existing?.slot_amount || 0);
+      const newPaid = amount_paid !== undefined ? parseFloat(amount_paid) : (existing?.amount_paid || 0);
+      updates.slot_amount = newSlot;
+      updates.amount_paid = newPaid;
+      updates.remaining = Math.max(0, newSlot - newPaid);
+    }
 
     let query = supabase.from('prospects').update(updates).eq('id', id);
     if (req.user.role === 'bda') query = query.eq('bdaId', req.user.id);
@@ -121,6 +155,41 @@ router.get('/bda-sheets', authenticateToken, requireRoles(['bda', 'team_lead', '
     return res.json({ user: data || {} });
   } catch (error) {
     console.error('Get sheet URLs error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// GET /api/prospects/stats - Payment/collection stats for BDA dashboard
+router.get('/stats', authenticateToken, requireRoles(['bda', 'team_lead', 'admin']), async (req, res) => {
+  try {
+    let query = supabase.from('prospects').select('payment_status, slot_amount, amount_paid, remaining, bdaId');
+
+    if (req.user.role === 'bda') {
+      query = query.eq('bdaId', req.user.id);
+    } else if (req.user.role === 'team_lead') {
+      const { data: bdas } = await supabase.from('users').select('id').eq('teamId', req.user.teamId).eq('role', 'bda');
+      const ids = (bdas || []).map(b => b.id);
+      query = query.in('bdaId', ids.length ? ids : [0]);
+    }
+
+    const { data: prospects, error } = await query;
+    if (error) throw error;
+
+    const total = prospects.length;
+    const slotBookings = prospects.filter(p => p.payment_status === 'slot_booking' || p.payment_status === 'partial_paid' || p.payment_status === 'fully_paid');
+    const totalSlotAmt = slotBookings.reduce((s, p) => s + parseFloat(p.slot_amount || 0), 0);
+    const totalPaid = prospects.reduce((s, p) => s + parseFloat(p.amount_paid || 0), 0);
+    const totalRemaining = prospects.reduce((s, p) => s + parseFloat(p.remaining || 0), 0);
+
+    return res.json({
+      total,
+      slotBookingCount: slotBookings.length,
+      totalSlotAmount: totalSlotAmt,
+      totalCollected: totalPaid,
+      totalOutstanding: totalRemaining,
+    });
+  } catch (error) {
+    console.error('Prospect stats error:', error);
     return res.status(500).json({ message: 'Internal server error' });
   }
 });
