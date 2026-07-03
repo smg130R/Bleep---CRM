@@ -267,4 +267,4 @@ async function importLeadsFromMasterSheet(spreadsheetId, tab = 'Sheet1') {
   }
 }
 
-module.exports = { startCronScheduler, runAllSyncs, syncBdaSheet, syncBdaProspects, pushBdaLeadsToSheet, extractSheetId, importLeadsFromMasterSheet };
+module.exports = { startCronScheduler, runAllSyncs, syncBdaSheet, syncBdaProspects, pushBdaLeadsToSheet, extractSheetId, importLeadsFromMasterSheet, parseRowsWithHeaders };
