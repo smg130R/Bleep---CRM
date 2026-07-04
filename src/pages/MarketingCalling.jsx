@@ -228,4 +228,4 @@ const MarketingCalling = ({ showToast }) => {
   );
 };
 
-export default SalesCalling;
+export default MarketingCalling;
