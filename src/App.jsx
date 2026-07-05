@@ -95,7 +95,7 @@ const MainApp = () => {
           {activePage === 'kpi-board' && <KpiBoard dateFilter={dateFilter} showToast={showToast} />}
           {activePage === 'team-structure' && <TeamStructure showToast={showToast} />}
           {activePage === 'employee-master' && <EmployeeMaster showToast={showToast} />}
-          {activePage === 'sales-calling' && <MarketingCalling showToast={showToast} />}
+          {activePage === 'marketing-calling' && <MarketingCalling showToast={showToast} />}
           {activePage === 'prospects' && <Prospects showToast={showToast} />}
           {activePage === 'follow-ups' && <Followups showToast={showToast} />}
           {activePage === 'reports' && <Reports />}

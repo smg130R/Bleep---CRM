@@ -412,4 +412,225 @@ router.get('/team-members/:teamId', authenticateToken, async (req, res) => {
   }
 });
 
+// GET /api/kpi/weekly - Last 7 days aggregated KPI per BDA
+router.get('/weekly', authenticateToken, async (req, res) => {
+  try {
+    const endDate = req.query.date || new Date().toISOString().split('T')[0];
+    const startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - 6);
+    const start = startDate.toISOString().split('T')[0];
+
+    let bdaQuery = supabase.from('users').select('id, name, teamId').eq('role', 'bda');
+    if (req.user.role === 'team_lead') {
+      bdaQuery = bdaQuery.eq('teamId', req.user.teamId);
+    } else if (req.user.role === 'bda') {
+      bdaQuery = bdaQuery.eq('id', req.user.id);
+    }
+    const { data: bdas } = await bdaQuery;
+    if (!bdas) return res.json({ records: [] });
+
+    const ids = bdas.map(b => b.id);
+    const { data: kpis } = await supabase
+      .from('kpi_records')
+      .select('userId, mCalls, mConn, mSS, mPros, eCalls, eConn, eSS, ePros, deals, perfScore, date')
+      .in('userId', ids.length ? ids : [0])
+      .gte('date', start)
+      .lte('date', endDate);
+
+    const kpiByUser = {};
+    (kpis || []).forEach(k => {
+      if (!kpiByUser[k.userId]) kpiByUser[k.userId] = [];
+      kpiByUser[k.userId].push(k);
+    });
+
+    const records = bdas.map(b => {
+      const days = kpiByUser[b.id] || [];
+      let calls = 0, connects = 0, screenshots = 0, prospects = 0, deals = 0, scoreSum = 0, daysActive = 0;
+      days.forEach(d => {
+        calls += (d.mCalls || 0) + (d.eCalls || 0);
+        connects += (d.mConn || 0) + (d.eConn || 0);
+        screenshots += (d.mSS || 0) + (d.eSS || 0);
+        prospects += (d.mPros || 0) + (d.ePros || 0);
+        deals += d.deals || 0;
+        if (d.deals > 0 || (d.mCalls || 0) + (d.eCalls || 0) > 0) {
+          scoreSum += d.perfScore || 0;
+          daysActive++;
+        }
+      });
+      return {
+        bdaId: b.id, bdaName: b.name, teamId: b.teamId,
+        calls, connects, screenshots, prospects, deals,
+        connectionRate: calls > 0 ? parseFloat(((connects / calls) * 100).toFixed(1)) : 0,
+        avgPerfScore: daysActive > 0 ? parseFloat((scoreSum / daysActive).toFixed(2)) : 0,
+        daysActive,
+      };
+    });
+
+    return res.json({ records, startDate: start, endDate });
+  } catch (error) {
+    console.error('Weekly KPI error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// GET /api/kpi/monthly - Last 30 days aggregated KPI per BDA
+router.get('/monthly', authenticateToken, async (req, res) => {
+  try {
+    const endDate = req.query.date || new Date().toISOString().split('T')[0];
+    const startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - 29);
+    const start = startDate.toISOString().split('T')[0];
+
+    let bdaQuery = supabase.from('users').select('id, name, teamId').eq('role', 'bda');
+    if (req.user.role === 'team_lead') {
+      bdaQuery = bdaQuery.eq('teamId', req.user.teamId);
+    } else if (req.user.role === 'bda') {
+      bdaQuery = bdaQuery.eq('id', req.user.id);
+    }
+    const { data: bdas } = await bdaQuery;
+    if (!bdas) return res.json({ records: [] });
+
+    const ids = bdas.map(b => b.id);
+    const { data: kpis } = await supabase
+      .from('kpi_records')
+      .select('userId, mCalls, mConn, mSS, mPros, eCalls, eConn, eSS, ePros, deals, perfScore, date')
+      .in('userId', ids.length ? ids : [0])
+      .gte('date', start)
+      .lte('date', endDate);
+
+    const kpiByUser = {};
+    (kpis || []).forEach(k => {
+      if (!kpiByUser[k.userId]) kpiByUser[k.userId] = [];
+      kpiByUser[k.userId].push(k);
+    });
+
+    const records = bdas.map(b => {
+      const days = kpiByUser[b.id] || [];
+      let calls = 0, connects = 0, screenshots = 0, prospects = 0, deals = 0, scoreSum = 0, daysActive = 0;
+      days.forEach(d => {
+        calls += (d.mCalls || 0) + (d.eCalls || 0);
+        connects += (d.mConn || 0) + (d.eConn || 0);
+        screenshots += (d.mSS || 0) + (d.eSS || 0);
+        prospects += (d.mPros || 0) + (d.ePros || 0);
+        deals += d.deals || 0;
+        if (d.deals > 0 || (d.mCalls || 0) + (d.eCalls || 0) > 0) {
+          scoreSum += d.perfScore || 0;
+          daysActive++;
+        }
+      });
+      return {
+        bdaId: b.id, bdaName: b.name, teamId: b.teamId,
+        calls, connects, screenshots, prospects, deals,
+        connectionRate: calls > 0 ? parseFloat(((connects / calls) * 100).toFixed(1)) : 0,
+        avgPerfScore: daysActive > 0 ? parseFloat((scoreSum / daysActive).toFixed(2)) : 0,
+        daysActive,
+      };
+    });
+
+    return res.json({ records, startDate: start, endDate });
+  } catch (error) {
+    console.error('Monthly KPI error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// GET /api/kpi/hr-report - Combined weekly + monthly + funnel for HR
+router.get('/hr-report', authenticateToken, requireRoles(['admin', 'hr', 'ops_head']), async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const weekAgo = new Date(today); weekAgo.setDate(weekAgo.getDate() - 6);
+    const monthAgo = new Date(today); monthAgo.setDate(monthAgo.getDate() - 29);
+
+    const weekStart = weekAgo.toISOString().split('T')[0];
+    const monthStart = monthAgo.toISOString().split('T')[0];
+
+    const { data: bdas } = await supabase.from('users').select('id, name, teamId').eq('role', 'bda').eq('status', 'active');
+    if (!bdas) return res.json({ weekly: [], monthly: [], funnel: [] });
+
+    const ids = bdas.map(b => b.id);
+
+    const { data: weeklyKpis } = await supabase
+      .from('kpi_records')
+      .select('userId, mCalls, mConn, mSS, mPros, eCalls, eConn, eSS, ePros, deals, perfScore')
+      .in('userId', ids.length ? ids : [0])
+      .gte('date', weekStart)
+      .lte('date', today);
+
+    const { data: monthlyKpis } = await supabase
+      .from('kpi_records')
+      .select('userId, mCalls, mConn, mSS, mPros, eCalls, eConn, eSS, ePros, deals, perfScore')
+      .in('userId', ids.length ? ids : [0])
+      .gte('date', monthStart)
+      .lte('date', today);
+
+    const aggregate = (kpis) => {
+      const byUser = {};
+      (kpis || []).forEach(k => {
+        if (!byUser[k.userId]) byUser[k.userId] = { calls: 0, connects: 0, ss: 0, pros: 0, deals: 0, scoreSum: 0, days: 0 };
+        byUser[k.userId].calls += (k.mCalls || 0) + (k.eCalls || 0);
+        byUser[k.userId].connects += (k.mConn || 0) + (k.eConn || 0);
+        byUser[k.userId].ss += (k.mSS || 0) + (k.eSS || 0);
+        byUser[k.userId].pros += (k.mPros || 0) + (k.ePros || 0);
+        byUser[k.userId].deals += k.deals || 0;
+        if (k.deals > 0 || (k.mCalls || 0) + (k.eCalls || 0) > 0) {
+          byUser[k.userId].scoreSum += k.perfScore || 0;
+          byUser[k.userId].days++;
+        }
+      });
+      return byUser;
+    };
+
+    const weeklyMap = aggregate(weeklyKpis);
+    const monthlyMap = aggregate(monthlyKpis);
+
+    const build = (map) => bdas.map(b => {
+      const d = map[b.id] || { calls: 0, connects: 0, ss: 0, pros: 0, deals: 0, scoreSum: 0, days: 0 };
+      return {
+        bdaId: b.id, bdaName: b.name, teamId: b.teamId,
+        calls: d.calls, connects: d.connects, screenshots: d.ss,
+        prospects: d.pros, deals: d.deals,
+        connectionRate: d.calls > 0 ? parseFloat(((d.connects / d.calls) * 100).toFixed(1)) : 0,
+        avgPerfScore: d.days > 0 ? parseFloat((d.scoreSum / d.days).toFixed(2)) : 0,
+        daysActive: d.days,
+      };
+    });
+
+    // Funnel: overall conversion rates
+    const totalWeek = Object.values(weeklyMap).reduce((s, d) => ({ calls: s.calls + d.calls, connects: s.connects + d.connects, pros: s.pros + d.pros, deals: s.deals + d.deals }), { calls: 0, connects: 0, pros: 0, deals: 0 });
+    const totalMonth = Object.values(monthlyMap).reduce((s, d) => ({ calls: s.calls + d.calls, connects: s.connects + d.connects, pros: s.pros + d.pros, deals: s.deals + d.deals }), { calls: 0, connects: 0, pros: 0, deals: 0 });
+
+    const funnel = {
+      weekly: {
+        calls: totalWeek.calls,
+        connects: totalWeek.connects,
+        connectRate: totalWeek.calls > 0 ? parseFloat(((totalWeek.connects / totalWeek.calls) * 100).toFixed(1)) : 0,
+        prospects: totalWeek.pros,
+        prospectRate: totalWeek.connects > 0 ? parseFloat(((totalWeek.pros / totalWeek.connects) * 100).toFixed(1)) : 0,
+        deals: totalWeek.deals,
+        dealRate: totalWeek.pros > 0 ? parseFloat(((totalWeek.deals / totalWeek.pros) * 100).toFixed(1)) : 0,
+      },
+      monthly: {
+        calls: totalMonth.calls,
+        connects: totalMonth.connects,
+        connectRate: totalMonth.calls > 0 ? parseFloat(((totalMonth.connects / totalMonth.calls) * 100).toFixed(1)) : 0,
+        prospects: totalMonth.pros,
+        prospectRate: totalMonth.connects > 0 ? parseFloat(((totalMonth.pros / totalMonth.connects) * 100).toFixed(1)) : 0,
+        deals: totalMonth.deals,
+        dealRate: totalMonth.pros > 0 ? parseFloat(((totalMonth.deals / totalMonth.pros) * 100).toFixed(1)) : 0,
+      },
+    };
+
+    return res.json({
+      weekly: build(weeklyMap),
+      monthly: build(monthlyMap),
+      funnel,
+      weekRange: `${weekStart} to ${today}`,
+      monthRange: `${monthStart} to ${today}`,
+    });
+  } catch (error) {
+    console.error('HR report error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 module.exports = router;

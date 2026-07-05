@@ -72,6 +72,19 @@ async function startServer() {
       console.warn('Sheets sync service cron not started:', err.message);
     }
 
+    // End-of-Day cron at 7:00 PM daily
+    try {
+      const cron = require('node-cron');
+      const { runEndOfDay } = require('./server/services/endOfDay');
+      cron.schedule('0 19 * * *', () => {
+        console.log('[Cron] Running end-of-day process...');
+        runEndOfDay().catch(e => console.error('[Cron] EOD failed:', e.message));
+      });
+      console.log('Cron set for 7:00 PM daily (EOD process).');
+    } catch (err) {
+      console.warn('EOD cron not started:', err.message);
+    }
+
     app.listen(config.PORT, () => {
       console.log(`Server running on http://localhost:${config.PORT}`);
     });

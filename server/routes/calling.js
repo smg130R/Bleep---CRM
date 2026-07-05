@@ -403,4 +403,46 @@ router.post('/fix-data', authenticateToken, requireRoles(['bda', 'team_lead', 'a
   }
 });
 
+// POST /api/calling/clear-data - Clear all lead/prospect/followup data (admin only)
+router.post('/clear-data', authenticateToken, requireRoles(['admin']), async (req, res) => {
+  try {
+    const result = {};
+    const { error: e1 } = await supabase.from('lead_assignments').delete().neq('id', 0);
+    result.leadAssignments = e1 ? 'failed' : 'cleared';
+
+    const { error: e2 } = await supabase.from('calling_sheet').delete().neq('id', 0);
+    result.callingSheet = e2 ? 'failed' : 'cleared';
+
+    const { error: e3 } = await supabase.from('followups').delete().neq('id', 0);
+    result.followups = e3 ? 'failed' : 'cleared';
+
+    const { error: e4 } = await supabase.from('prospects').delete().neq('id', 0);
+    result.prospects = e4 ? 'failed' : 'cleared';
+
+    const { error: e5 } = await supabase.from('leads').delete().neq('id', 0);
+    result.leads = e5 ? 'failed' : 'cleared';
+
+    const hasError = [e1, e2, e3, e4, e5].some(e => e);
+    return res.status(hasError ? 500 : 200).json({
+      message: hasError ? 'Some tables failed to clear.' : 'All data cleared successfully.',
+      result,
+    });
+  } catch (error) {
+    console.error('Clear data error:', error);
+    return res.status(500).json({ message: 'Error clearing data: ' + error.message });
+  }
+});
+
+// POST /api/calling/eod-run - End-of-Day process (manual trigger)
+router.post('/eod-run', authenticateToken, requireRoles(['admin', 'ops_head', 'hr']), async (req, res) => {
+  try {
+    const { runEndOfDay } = require('../services/endOfDay');
+    const results = await runEndOfDay();
+    return res.json({ message: 'EOD process completed.', results });
+  } catch (error) {
+    console.error('EOD run error:', error);
+    return res.status(500).json({ message: 'EOD process failed: ' + error.message });
+  }
+});
+
 module.exports = router;

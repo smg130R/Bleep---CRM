@@ -116,24 +116,24 @@ const Prospects = ({ showToast }) => {
     });
   };
 
-  const saveEdit = async () => {
-    if (!editForm.customerName || !editForm.contact) { showToast('Name and contact required.', true); return; }
+  const handleEditBlur = async (id, field, value) => {
+    const old = { ...editForm };
+    setEditForm(prev => ({ ...prev, [field]: value }));
     try {
-      const res = await fetch(`/api/prospects/${editingId}`, {
+      const res = await fetch(`/api/prospects/${id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify({ [field]: value }),
       });
-      if (res.ok) {
-        showToast('Prospect updated.');
-        setEditingId(null);
+      if (!res.ok) {
+        setEditForm(old);
+        showToast('Failed to save', true);
+      } else if (field === 'slot_amount' || field === 'amount_paid') {
         fetchProspects();
-      } else {
-        try {
-          const err = await res.json();
-          showToast(err.message || 'Failed.', true);
-        } catch { showToast('Request failed', true); }
       }
-    } catch { showToast('Connection error', true); }
+    } catch {
+      setEditForm(old);
+      showToast('Connection error', true);
+    }
   };
 
   const syncFromSheet = async () => {
@@ -298,32 +298,31 @@ const Prospects = ({ showToast }) => {
                 filtered.map(p => (
                   editingId === p.id ? (
                     <tr key={p.id}>
-                      <td><input className="table-input" value={editForm.customerName} onChange={e => setEditForm({...editForm, customerName: e.target.value})} style={{ minWidth: '80px' }} /></td>
-                      <td><input className="table-input" value={editForm.contact} onChange={e => setEditForm({...editForm, contact: e.target.value})} style={{ minWidth: '90px' }} /></td>
-                      <td><input className="table-input" value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} style={{ minWidth: '100px' }} /></td>
-                      <td><input className="table-input" value={editForm.college} onChange={e => setEditForm({...editForm, college: e.target.value})} style={{ minWidth: '80px' }} /></td>
-                      <td><input className="table-input" value={editForm.domain} onChange={e => setEditForm({...editForm, domain: e.target.value})} style={{ minWidth: '80px' }} /></td>
+                      <td><input className="table-input" value={editForm.customerName} onChange={e => setEditForm({...editForm, customerName: e.target.value})} onBlur={e => handleEditBlur(p.id, 'customerName', e.target.value)} style={{ minWidth: '80px' }} /></td>
+                      <td><input className="table-input" value={editForm.contact} onChange={e => setEditForm({...editForm, contact: e.target.value})} onBlur={e => handleEditBlur(p.id, 'contact', e.target.value)} style={{ minWidth: '90px' }} /></td>
+                      <td><input className="table-input" value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} onBlur={e => handleEditBlur(p.id, 'email', e.target.value)} style={{ minWidth: '100px' }} /></td>
+                      <td><input className="table-input" value={editForm.college} onChange={e => setEditForm({...editForm, college: e.target.value})} onBlur={e => handleEditBlur(p.id, 'college', e.target.value)} style={{ minWidth: '80px' }} /></td>
+                      <td><input className="table-input" value={editForm.domain} onChange={e => setEditForm({...editForm, domain: e.target.value})} onBlur={e => handleEditBlur(p.id, 'domain', e.target.value)} style={{ minWidth: '80px' }} /></td>
                       <td>
-                        <select className="table-select" value={editForm.status} onChange={e => setEditForm({...editForm, status: e.target.value})}
+                        <select className="table-select" value={editForm.status} onChange={e => setEditForm({...editForm, status: e.target.value})} onBlur={e => handleEditBlur(p.id, 'status', e.target.value)}
                           style={{ padding: '0.25rem 0.4rem', fontSize: '0.75rem', color: '#fff', backgroundColor: statusColor(editForm.status) }}>
                           {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </td>
                       <td>
-                        <select className="table-select" value={editForm.payment_status} onChange={e => setEditForm({...editForm, payment_status: e.target.value})}
+                        <select className="table-select" value={editForm.payment_status} onChange={e => setEditForm({...editForm, payment_status: e.target.value})} onBlur={e => handleEditBlur(p.id, 'payment_status', e.target.value)}
                           style={{ padding: '0.25rem 0.4rem', fontSize: '0.75rem' }}>
                           {paymentOptions.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </td>
-                      <td><input className="table-input" type="number" value={editForm.slot_amount} onChange={e => setEditForm({...editForm, slot_amount: e.target.value})} style={{ width: '70px' }} /></td>
-                      <td><input className="table-input" type="number" value={editForm.amount_paid} onChange={e => setEditForm({...editForm, amount_paid: e.target.value})} style={{ width: '70px' }} /></td>
+                      <td><input className="table-input" type="number" value={editForm.slot_amount} onChange={e => setEditForm({...editForm, slot_amount: e.target.value})} onBlur={e => handleEditBlur(p.id, 'slot_amount', e.target.value)} style={{ width: '70px' }} /></td>
+                      <td><input className="table-input" type="number" value={editForm.amount_paid} onChange={e => setEditForm({...editForm, amount_paid: e.target.value})} onBlur={e => handleEditBlur(p.id, 'amount_paid', e.target.value)} style={{ width: '70px' }} /></td>
                       <td style={{ fontWeight: 600, color: 'var(--danger)' }}>₹{Math.max(0, (parseFloat(editForm.slot_amount)||0) - (parseFloat(editForm.amount_paid)||0))}</td>
-                      <td><input className="table-input" value={editForm.month} onChange={e => setEditForm({...editForm, month: e.target.value})} style={{ width: '70px' }} /></td>
-                      <td><input className="table-input" value={editForm.state} onChange={e => setEditForm({...editForm, state: e.target.value})} style={{ width: '70px' }} /></td>
-                      <td><input className="table-input" value={editForm.remarks} onChange={e => setEditForm({...editForm, remarks: e.target.value})} style={{ minWidth: '100px' }} /></td>
+                      <td><input className="table-input" value={editForm.month} onChange={e => setEditForm({...editForm, month: e.target.value})} onBlur={e => handleEditBlur(p.id, 'month', e.target.value)} style={{ width: '70px' }} /></td>
+                      <td><input className="table-input" value={editForm.state} onChange={e => setEditForm({...editForm, state: e.target.value})} onBlur={e => handleEditBlur(p.id, 'state', e.target.value)} style={{ width: '70px' }} /></td>
+                      <td><input className="table-input" value={editForm.remarks} onChange={e => setEditForm({...editForm, remarks: e.target.value})} onBlur={e => handleEditBlur(p.id, 'remarks', e.target.value)} style={{ minWidth: '100px' }} /></td>
                       <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        <button className="btn btn-primary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem' }} onClick={saveEdit}>Save</button>
-                        <button className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem', marginLeft: '0.25rem' }} onClick={() => setEditingId(null)}>X</button>
+                        <button className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem' }} onClick={() => setEditingId(null)}>X</button>
                       </td>
                     </tr>
                   ) : (
