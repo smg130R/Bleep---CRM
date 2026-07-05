@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const supabase = require('../db/supabase');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireRoles } = require('../middleware/auth');
 
 // GET /api/kpi/dashboard - General summary stats
 router.get('/dashboard', authenticateToken, async (req, res) => {
