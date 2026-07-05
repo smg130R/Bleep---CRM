@@ -287,6 +287,7 @@ router.post('/fix-data', authenticateToken, requireRoles(['bda', 'team_lead', 'a
       .select('*')
       .eq('assignedUserId', targetUserId);
 
+    const fixLog = [];
     if (callingRows) {
       for (const row of callingRows) {
         const cleaned = smartCleanRow({ ...row });
@@ -296,6 +297,11 @@ router.post('/fix-data', authenticateToken, requireRoles(['bda', 'team_lead', 'a
           || cleaned.branch !== (row.branch || '')
           || cleaned.year !== (row.year || '');
         if (changed) {
+          const diff = {};
+          for (const f of ['customerName', 'contact', 'college', 'branch', 'year']) {
+            if (cleaned[f] !== (row[f] || '')) diff[f] = { from: row[f] || '', to: cleaned[f] || '' };
+          }
+          fixLog.push({ id: row.id, table: 'calling_sheet', diff });
           await supabase.from('calling_sheet').update({
             customerName: cleaned.customerName,
             contact: cleaned.contact,
@@ -327,6 +333,11 @@ router.post('/fix-data', authenticateToken, requireRoles(['bda', 'team_lead', 'a
           || cleaned.branch !== (row.branch || '')
           || cleaned.year !== (row.year || '');
         if (changed) {
+          const diff = {};
+          for (const f of ['customerName', 'contact', 'college', 'branch', 'year']) {
+            if (cleaned[f] !== (row[f] || '')) diff[f] = { from: row[f] || '', to: cleaned[f] || '' };
+          }
+          fixLog.push({ id: row.id, table: 'leads', diff });
           await supabase.from('leads').update({
             customerName: cleaned.customerName,
             contact: cleaned.contact,
@@ -344,6 +355,7 @@ router.post('/fix-data', authenticateToken, requireRoles(['bda', 'team_lead', 'a
       message: `Fixed ${fixedCalling} calling sheet records and ${fixedLeads} leads.`,
       fixedCalling,
       fixedLeads,
+      changes: fixLog.slice(0, 20),
     });
   } catch (error) {
     console.error('Fix data error:', error);

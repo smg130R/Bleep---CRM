@@ -27,16 +27,16 @@ const MarketingCalling = ({ showToast }) => {
     fetchCallingSheet();
   }, []);
 
-  const handleStatusChange = async (index, newStatus) => {
-    const record = callingData[index];
+  const handleStatusChange = async (id, newStatus) => {
+    const record = callingData.find(r => r.id === id);
+    if (!record) return;
     const oldStatus = record.status;
 
-    const updated = [...callingData];
-    updated[index].status = newStatus;
+    const updated = callingData.map(r => r.id === id ? { ...r, status: newStatus } : r);
     setCallingData(updated);
 
     try {
-      const res = await fetch(`/api/calling/${record.id}`, {
+      const res = await fetch(`/api/calling/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus, remarks: record.remarks })
@@ -46,20 +46,19 @@ const MarketingCalling = ({ showToast }) => {
         showToast(`Logged "${newStatus}" for ${record.customerName}`);
       } else {
         showToast('Failed to update status on server.', true);
-        updated[index].status = oldStatus;
-        setCallingData(updated);
+        setCallingData(callingData.map(r => r.id === id ? { ...r, status: oldStatus } : r));
       }
     } catch {
       showToast('Server update failed.', true);
-      updated[index].status = oldStatus;
-      setCallingData(updated);
+      setCallingData(callingData.map(r => r.id === id ? { ...r, status: oldStatus } : r));
     }
   };
 
-  const handleRemarksBlur = async (index, newRemarks) => {
-    const record = callingData[index];
+  const handleRemarksBlur = async (id, newRemarks) => {
+    const record = callingData.find(r => r.id === id);
+    if (!record) return;
     try {
-      await fetch(`/api/calling/${record.id}`, {
+      await fetch(`/api/calling/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: record.status, remarks: newRemarks })
@@ -198,7 +197,7 @@ const MarketingCalling = ({ showToast }) => {
                       <select
                         className="table-select"
                         value={row.status}
-                        onChange={(e) => handleStatusChange(idx, e.target.value)}
+                        onChange={(e) => handleStatusChange(row.id, e.target.value)}
                         style={{ padding: '0.35rem 0.50rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)' }}
                       >
                         {statusOptions.map(opt => (
@@ -213,7 +212,7 @@ const MarketingCalling = ({ showToast }) => {
                         className="table-input"
                         placeholder="Log customer response..."
                         defaultValue={row.remarks}
-                        onBlur={(e) => handleRemarksBlur(idx, e.target.value)}
+                        onBlur={(e) => handleRemarksBlur(row.id, e.target.value)}
                         style={{ width: '100%', minWidth: '220px' }}
                       />
                     </td>
