@@ -137,6 +137,25 @@ const TeamLeadWorkspace = ({ showToast }) => {
     }
   };
 
+  const [deduplicating, setDeduplicating] = useState(false);
+  const handleDeduplicate = async () => {
+    setDeduplicating(true);
+    try {
+      const res = await fetch('/api/team-lead/deduplicate', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message);
+        if (data.removed > 0) fetchLeads();
+      } else {
+        showToast(data.message || 'Deduplicate failed', true);
+      }
+    } catch (err) {
+      showToast('Connection error', true);
+    } finally {
+      setDeduplicating(false);
+    }
+  };
+
   const handleDistribute = async () => {
     setDistributing(true);
     try {
@@ -218,6 +237,9 @@ const TeamLeadWorkspace = ({ showToast }) => {
           </button>
           <button className="btn btn-secondary" onClick={handleImport}>
             <Download size={14} /> Import
+          </button>
+          <button className="btn btn-secondary" onClick={handleDeduplicate} disabled={deduplicating}>
+            <RefreshCw size={14} className={deduplicating ? 'animate-spin' : ''} /> {deduplicating ? 'Deduplicating...' : 'Fix Duplicates'}
           </button>
         </div>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
