@@ -45,7 +45,6 @@ async function addLeads(teamId, newLeads) {
         naCount: 0,
         assignedInMaster: false,
         currentAssigneeId: null,
-        batchDate: today,
         createdAt: today,
         updatedAt: today,
       });
