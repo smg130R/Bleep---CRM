@@ -60,6 +60,58 @@ router.post('/import', authenticateToken, requireRoles(['team_lead', 'admin']), 
   }
 });
 
+// POST /api/team-lead/deduplicate - Remove duplicate leads by contact, keep latest
+router.post('/deduplicate', authenticateToken, requireRoles(['team_lead', 'admin']), async (req, res) => {
+  try {
+    const teamId = req.user.teamId;
+    if (!teamId) return res.status(400).json({ message: 'You are not assigned to a team.' });
+
+    const { data: leads } = await supabase.from('leads').select('*').eq('teamId', teamId).order('id', { ascending: false });
+    if (!leads || leads.length === 0) return res.json({ message: 'No leads to deduplicate.', removed: 0 });
+
+    const byContact = {};
+    for (const lead of leads) {
+      const key = lead.contact.replace(/\D/g, '');
+      if (!key) continue;
+      if (!byContact[key]) byContact[key] = [];
+      byContact[key].push(lead);
+    }
+
+    const toDelete = [];
+    const reassigns = [];
+    for (const [contact, group] of Object.entries(byContact)) {
+      if (group.length <= 1) continue;
+      // Keep first (highest ID = latest imported), delete rest
+      const [keep, ...dupes] = group;
+      for (const d of dupes) {
+        reassigns.push({ oldId: d.id, newId: keep.id });
+        toDelete.push(d.id);
+      }
+    }
+
+    if (toDelete.length === 0) {
+      return res.json({ message: 'No duplicates found.', removed: 0 });
+    }
+
+    // Update calling_sheet references to point to surviving leads
+    for (const r of reassigns) {
+      await supabase.from('calling_sheet').update({ leadId: r.newId }).eq('leadId', r.oldId);
+    }
+
+    // Delete duplicate leads
+    const { error } = await supabase.from('leads').delete().in('id', toDelete);
+    if (error) throw error;
+
+    return res.json({
+      message: `Removed ${toDelete.length} duplicate leads, reassigned ${reassigns.length} calling sheet references.`,
+      removed: toDelete.length,
+    });
+  } catch (error) {
+    console.error('Deduplicate error:', error);
+    return res.status(500).json({ message: 'Error deduplicating: ' + error.message });
+  }
+});
+
 // GET /api/team-lead/leads - Get all leads for the team
 router.get('/leads', authenticateToken, requireRoles(['team_lead', 'admin']), async (req, res) => {
   try {
