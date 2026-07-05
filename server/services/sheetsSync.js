@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const { google } = require('googleapis');
 const supabase = require('../db/supabase');
+const { smartCleanRow } = require('./smartClean');
 
 async function getSheetsClient() {
   const saEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -215,7 +216,7 @@ function parseRowsWithHeaders(rows) {
     return [];
   }
 
-  return rows.slice(1).map(row => ({
+  const rawLeads = rows.slice(1).map(row => ({
     customerName: (row[map.customerName] || '').trim(),
     contact: (row[map.contact] || '').trim(),
     email: map.email !== undefined ? (row[map.email] || '').trim() : '',
@@ -233,6 +234,9 @@ function parseRowsWithHeaders(rows) {
     remaining: map.remaining !== undefined ? parseFloat(row[map.remaining]) || 0 : 0,
     remarks: map.remarks !== undefined ? (row[map.remarks] || '').trim() : '',
   })).filter(l => l.customerName && l.contact);
+
+  // Run smart cleanup on every row to auto-fix swapped columns
+  return rawLeads.map(l => smartCleanRow(l));
 }
 
 // Extract spreadsheet ID from a Google Sheets URL

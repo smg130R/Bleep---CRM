@@ -1,4 +1,5 @@
 const supabase = require('../db/supabase');
+const { smartCleanRow } = require('./smartClean');
 
 // ── Team Config (masterSheetUrl on teams table) ──
 
@@ -29,7 +30,8 @@ async function addLeads(teamId, newLeads) {
   const existingSet = new Set((existing || []).map(l => `${l.customerName}|${l.contact}`));
 
   const toInsert = [];
-  for (const lead of newLeads) {
+  for (const raw of newLeads) {
+    const lead = smartCleanRow(raw);
     const key = `${lead.customerName}|${lead.contact}`;
     if (!existingSet.has(key)) {
       toInsert.push({
