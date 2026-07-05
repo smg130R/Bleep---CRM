@@ -26,14 +26,26 @@ async function getLeadById(teamId, leadId) {
 
 async function addLeads(teamId, newLeads) {
   const today = new Date().toISOString().split('T')[0];
-  const { data: existing } = await supabase.from('leads').select('"customerName", contact').eq('teamId', teamId);
-  const existingSet = new Set((existing || []).map(l => `${l.customerName}|${l.contact}`));
+  const { data: existing } = await supabase.from('leads').select('*').eq('teamId', teamId);
+  const existingByContact = new Map((existing || []).map(l => [l.contact.replace(/\D/g, ''), l]));
 
   const toInsert = [];
+  const toUpdate = [];
   for (const raw of newLeads) {
     const lead = smartCleanRow(raw);
-    const key = `${lead.customerName}|${lead.contact}`;
-    if (!existingSet.has(key)) {
+    const contactKey = lead.contact.replace(/\D/g, '');
+    const match = existingByContact.get(contactKey);
+    if (match) {
+      // Update existing record with corrected data
+      toUpdate.push({
+        id: match.id,
+        customerName: lead.customerName,
+        contact: lead.contact,
+        college: lead.college || '',
+        branch: lead.branch || '',
+        year: lead.year || '',
+      });
+    } else {
       toInsert.push({
         teamId,
         customerName: lead.customerName,
@@ -48,7 +60,6 @@ async function addLeads(teamId, newLeads) {
         createdAt: today,
         updatedAt: today,
       });
-      existingSet.add(key);
     }
   }
 
@@ -56,7 +67,20 @@ async function addLeads(teamId, newLeads) {
     const { error } = await supabase.from('leads').insert(toInsert);
     if (error) throw error;
   }
-  return toInsert;
+
+  for (const upd of toUpdate) {
+    const { error } = await supabase.from('leads').update({
+      customerName: upd.customerName,
+      contact: upd.contact,
+      college: upd.college,
+      branch: upd.branch,
+      year: upd.year,
+      updatedAt: today,
+    }).eq('id', upd.id);
+    if (error) console.error('Error updating lead', upd.id, error.message);
+  }
+
+  return { inserted: toInsert, updated: toUpdate.length };
 }
 
 async function updateLead(teamId, leadId, updates) {

@@ -51,8 +51,9 @@ router.post('/import', authenticateToken, requireRoles(['team_lead', 'admin']), 
       return res.status(400).json({ message: 'No leads found in the master sheet. Check the sheet has data starting from row 2 (Name, Contact, College, Branch, Year).' });
     }
 
-    const added = await teamLeadData.addLeads(teamId, leads);
-    return res.json({ message: `Imported ${added.length} new leads from master sheet.`, added: added.length });
+    const result = await teamLeadData.addLeads(teamId, leads);
+    const updated = result.updated || 0;
+    return res.json({ message: `Imported ${result.inserted.length} new, updated ${updated} existing leads from master sheet.`, added: result.inserted.length, updated });
   } catch (error) {
     console.error('Import leads error:', error);
     return res.status(500).json({ message: 'Error reading master sheet: ' + error.message });
