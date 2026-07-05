@@ -289,8 +289,28 @@ router.post('/fix-data', authenticateToken, requireRoles(['bda', 'team_lead', 'a
 
     const fixLog = [];
     if (callingRows) {
+      // Batch-fetch leads for these calling sheet rows
+      const leadIds = [...new Set(callingRows.filter(r => r.leadId).map(r => r.leadId))];
+      let leadMap = {};
+      if (leadIds.length > 0) {
+        const { data: leads } = await supabase.from('leads').select('id, "customerName", contact, college, branch, year').in('id', leadIds);
+        leadMap = Object.fromEntries((leads || []).map(l => [l.id, l]));
+      }
+
       for (const row of callingRows) {
-        const cleaned = smartCleanRow({ ...row });
+        // Step 1: Sync data fields from lead (source of truth)
+        const baseRow = { ...row };
+        const lead = row.leadId ? leadMap[row.leadId] : null;
+        if (lead) {
+          baseRow.customerName = lead.customerName;
+          baseRow.contact = lead.contact;
+          baseRow.college = lead.college || '';
+          baseRow.branch = lead.branch || '';
+          baseRow.year = lead.year || '';
+        }
+
+        // Step 2: Run smartClean on synced data
+        const cleaned = smartCleanRow(baseRow);
         const changed = cleaned.customerName !== row.customerName
           || cleaned.contact !== row.contact
           || cleaned.college !== (row.college || '')
