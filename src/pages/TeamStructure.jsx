@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Network, Users, Phone, PhoneCall, Trophy, ArrowLeft, ShieldAlert } from 'lucide-react';
+import { Network, Users, Phone, PhoneCall, Trophy, ArrowLeft, ShieldAlert, Target, CheckCircle, Star } from 'lucide-react';
 
 const TeamStructure = ({ showToast }) => {
   const { user } = useAuth();
@@ -9,6 +9,7 @@ const TeamStructure = ({ showToast }) => {
   const [selectedTeamId, setSelectedTeamId] = useState(null);
   const [teamDetail, setTeamDetail] = useState(null);
   const [teamsList, setTeamsList] = useState([]);
+  const [teamsSummary, setTeamsSummary] = useState({});
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
 
@@ -19,10 +20,19 @@ const TeamStructure = ({ showToast }) => {
   const fetchTeams = async () => {
     try {
       setPageLoading(true);
-      const res = await fetch('/api/employees/teams', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
+      const [teamsRes, summaryRes] = await Promise.all([
+        fetch('/api/employees/teams', { credentials: 'include' }),
+        fetch('/api/employees/teams/summary', { credentials: 'include' })
+      ]);
+      if (teamsRes.ok) {
+        const data = await teamsRes.json();
         setTeamsList(data.teams || []);
+      }
+      if (summaryRes.ok) {
+        const data = await summaryRes.json();
+        const summaryMap = {};
+        (data.teams || []).forEach(t => { summaryMap[t.id] = t; });
+        setTeamsSummary(summaryMap);
       }
     } catch (err) {
       console.error('Error fetching teams:', err);
@@ -87,14 +97,16 @@ const TeamStructure = ({ showToast }) => {
   const selectedTeam = teamsList.find(t => t.id === selectedTeamId);
 
   const getAggregates = () => {
-    if (!teamDetail?.performance) return { size: 0, calls: 0, connects: 0, prospects: 0, deals: 0 };
+    if (!teamDetail?.performance) return { size: 0, calls: 0, connects: 0, prospects: 0, deals: 0, screenshots: 0, sCalls: 0 };
     const perf = teamDetail.performance;
     return {
       size: perf.length,
       calls: perf.reduce((s, b) => s + b.mCalls + b.eCalls, 0),
       connects: perf.reduce((s, b) => s + b.mConn + b.eConn, 0),
       prospects: perf.reduce((s, b) => s + b.mPros + b.ePros, 0),
-      deals: perf.reduce((s, b) => s + b.deals, 0)
+      deals: perf.reduce((s, b) => s + b.deals, 0),
+      screenshots: perf.reduce((s, b) => s + (b.mSS || 0), 0),
+      sCalls: perf.reduce((s, b) => s + (b.eSS || 0), 0)
     };
   };
 
@@ -168,6 +180,24 @@ const TeamStructure = ({ showToast }) => {
             <div className="kpi-card-value">{agg.deals}</div>
             <div className="kpi-card-footer">₹{(agg.deals * 12500).toLocaleString('en-IN')} logged today</div>
           </div>
+
+          <div className="kpi-card teal">
+            <div className="kpi-card-header">
+              <span className="kpi-card-title">Screenshots Shared</span>
+              <div className="kpi-card-icon"><CheckCircle size={18} /></div>
+            </div>
+            <div className="kpi-card-value">{agg.screenshots}</div>
+            <div className="kpi-card-footer">Total screenshots today</div>
+          </div>
+
+          <div className="kpi-card indigo">
+            <div className="kpi-card-header">
+              <span className="kpi-card-title">Sales Calls</span>
+              <div className="kpi-card-icon"><Phone size={18} /></div>
+            </div>
+            <div className="kpi-card-value">{agg.sCalls}</div>
+            <div className="kpi-card-footer">Post 5 PM calls logged</div>
+          </div>
         </div>
 
         <div className="content-card" style={{ padding: '0', overflow: 'hidden' }}>
@@ -186,6 +216,7 @@ const TeamStructure = ({ showToast }) => {
                   <th>MC2 Conn</th>
                   <th>MC2 Pros</th>
                   <th>Screenshots</th>
+                  <th>Sales Calls</th>
                   <th>Deals</th>
                   <th>Follow-ups</th>
                   <th style={{ minWidth: '150px' }}>Score</th>
@@ -195,11 +226,11 @@ const TeamStructure = ({ showToast }) => {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={12} style={{ textAlign: 'center', padding: '2rem' }}>Loading team stats...</td>
+                    <td colSpan={13} style={{ textAlign: 'center', padding: '2rem' }}>Loading team stats...</td>
                   </tr>
                 ) : !teamDetail.performance?.length ? (
                   <tr>
-                    <td colSpan={12} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                    <td colSpan={13} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                       No BDA records found for this team.
                     </td>
                   </tr>
@@ -222,6 +253,7 @@ const TeamStructure = ({ showToast }) => {
                         <td>{bda.eConn}</td>
                         <td>{bda.ePros}</td>
                         <td>{bda.mSS || 0}</td>
+                        <td>{bda.eSS || 0}</td>
                         <td style={{ fontWeight: 'bold', color: 'var(--success)' }}>{bda.deals}</td>
                         <td>{bda.followups}</td>
                         <td>
@@ -262,21 +294,53 @@ const TeamStructure = ({ showToast }) => {
         </div>
       ) : (
         <div className="team-grid" id="team-cards-container">
-          {visibleTeams.map((team) => (
-            <div 
-              key={team.id} 
-              className="team-card clickable"
-              onClick={() => handleTeamClick(team.id)}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="team-card-header">
-                <div className="team-card-info">
-                  <h3>Team {team.id} Division</h3>
-                  <p>Lead: {team.leadName || 'Unassigned'}</p>
+          {visibleTeams.map((team) => {
+            const stats = teamsSummary[team.id];
+            return (
+              <div 
+                key={team.id} 
+                className="team-card clickable"
+                onClick={() => handleTeamClick(team.id)}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="team-card-header">
+                  <div className="team-card-info">
+                    <h3>Team {team.id} Division</h3>
+                    <p>Lead: {team.leadName || 'Unassigned'}</p>
+                  </div>
+                  {stats && (
+                    <div className="team-card-stats">
+                      <div className="team-stat">
+                        <Phone size={14} />
+                        <span>{stats.calls}</span>
+                        <label>Calls</label>
+                      </div>
+                      <div className="team-stat">
+                        <CheckCircle size={14} />
+                        <span>{stats.connects}</span>
+                        <label>Conn</label>
+                      </div>
+                      <div className="team-stat">
+                        <Target size={14} />
+                        <span>{stats.prospects}</span>
+                        <label>Pros</label>
+                      </div>
+                      <div className="team-stat">
+                        <Trophy size={14} />
+                        <span>{stats.deals}</span>
+                        <label>Deals</label>
+                      </div>
+                      <div className="team-stat">
+                        <Star size={14} />
+                        <span>{stats.score}%</span>
+                        <label>Score</label>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

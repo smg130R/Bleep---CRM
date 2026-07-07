@@ -1125,6 +1125,42 @@ body {
   margin-top: 0.15rem;
 }
 
+.team-card-stats {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+  width: 100%;
+}
+
+.team-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  background: var(--bg-main);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.5rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.team-stat span {
+  font-weight: 700;
+  color: var(--primary-navy);
+}
+
+.team-stat label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.team-stat svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
 .team-stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

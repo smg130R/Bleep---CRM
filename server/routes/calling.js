@@ -512,6 +512,36 @@ router.post('/clear-data', authenticateToken, requireRoles(['admin']), async (re
   }
 });
 
+// POST /api/calling/track-sales-call - Track a call from Prospects page as Sales
+router.post('/track-sales-call', authenticateToken, requireRoles(['bda']), async (req, res) => {
+  try {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const { data: existing } = await supabase
+      .from('kpi_records')
+      .select('id, eSS')
+      .eq('userId', req.user.id)
+      .eq('date', todayStr)
+      .maybeSingle();
+
+    if (existing) {
+      const { error } = await supabase
+        .from('kpi_records')
+        .update({ eSS: (existing.eSS || 0) + 1 })
+        .eq('id', existing.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase
+        .from('kpi_records')
+        .insert({ userId: req.user.id, date: todayStr, eSS: 1 });
+      if (error) throw error;
+    }
+    return res.json({ message: 'Sales call tracked.' });
+  } catch (error) {
+    console.error('Track sales call error:', error);
+    return res.status(500).json({ message: 'Error tracking sales call.' });
+  }
+});
+
 // POST /api/calling/eod-run - End-of-Day process (manual trigger)
 router.post('/eod-run', authenticateToken, requireRoles(['admin', 'ops_head', 'hr']), async (req, res) => {
   try {

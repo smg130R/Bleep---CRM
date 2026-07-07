@@ -209,14 +209,20 @@ function detectColumnMap(headers) {
 
 function parseRowsWithHeaders(rows) {
   if (!rows || rows.length < 2) return [];
-  const headers = rows[0];
+  // Skip empty leading rows to find the header row
+  let headerIdx = 0;
+  while (headerIdx < rows.length && (!rows[headerIdx] || rows[headerIdx].every(c => !c || !c.trim()))) {
+    headerIdx++;
+  }
+  if (headerIdx >= rows.length - 1) return [];
+  const headers = rows[headerIdx];
   const map = detectColumnMap(headers);
   if (map.customerName === undefined || map.contact === undefined) {
     console.warn('Could not detect required columns (Name, Contact). Found headers:', headers.join(', '));
     return [];
   }
 
-  const rawLeads = rows.slice(1).map(row => ({
+  const rawLeads = rows.slice(headerIdx + 1).map(row => ({
     customerName: (row[map.customerName] || '').trim(),
     contact: (row[map.contact] || '').trim(),
     email: map.email !== undefined ? (row[map.email] || '').trim() : '',

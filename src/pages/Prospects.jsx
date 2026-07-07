@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { UserPlus, Save, ExternalLink, DollarSign, TrendingUp, Users, CreditCard, RefreshCw } from 'lucide-react';
+import { UserPlus, Save, ExternalLink, DollarSign, TrendingUp, Users, CreditCard, RefreshCw, Phone } from 'lucide-react';
 
 const statusOptions = ['Prospect', 'Follow-up', 'NA', 'NI', 'Call Back', 'Registration Done', 'Converted', 'Lost'];
 const paymentOptions = ['pending', 'slot_booking', 'partial_paid', 'fully_paid', 'cancelled'];
@@ -328,7 +328,15 @@ const Prospects = ({ showToast }) => {
                   ) : (
                     <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => startEdit(p)} title="Click to edit">
                       <td style={{ fontWeight: 600 }}>{p.customerName}</td>
-                      <td><a href={`tel:${p.contact}`} style={{ color: 'var(--accent-blue)' }} onClick={e => e.stopPropagation()}>{p.contact}</a></td>
+                      <td>
+                        <a href={`tel:${p.contact}`} style={{ color: 'var(--accent-blue)' }}
+                          onClick={e => {
+                            e.stopPropagation();
+                            fetch('/api/calling/track-sales-call', { method: 'POST', credentials: 'include' }).catch(() => {});
+                          }}>
+                          <Phone size={12} style={{ marginRight: '0.2rem' }} />{p.contact}
+                        </a>
+                      </td>
                       <td style={{ fontSize: '0.8rem' }}>{p.email || '-'}</td>
                       <td style={{ fontSize: '0.8rem' }}>{p.college || '-'}</td>
                       <td style={{ fontSize: '0.8rem' }}>{p.domain || '-'}</td>

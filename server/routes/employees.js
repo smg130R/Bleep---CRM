@@ -79,6 +79,67 @@ router.get('/teams', authenticateToken, requireRoles(['admin', 'ops_head', 'hr',
   }
 });
 
+// GET /api/employees/teams/summary - Teams with today's KPI aggregates
+router.get('/teams/summary', authenticateToken, requireRoles(['admin', 'ops_head', 'hr', 'team_lead']), async (req, res) => {
+  const dateFilter = req.query.date || new Date().toISOString().split('T')[0];
+  try {
+    const { data: teams, error: teamErr } = await supabase
+      .from('teams')
+      .select('id, name, leadId, users(name, email)')
+      .order('id');
+
+    if (teamErr) throw teamErr;
+
+    const result = [];
+    for (const team of teams || []) {
+      const { data: bdas } = await supabase
+        .from('users')
+        .select('id')
+        .eq('role', 'bda')
+        .eq('teamId', team.id);
+
+      const ids = (bdas || []).map(b => b.id);
+      if (ids.length === 0) {
+        result.push({
+          id: team.id, name: team.name, leadName: team.users?.name || null, leadEmail: team.users?.email || null,
+          calls: 0, connects: 0, screenshots: 0, prospects: 0, sCalls: 0, deals: 0, followups: 0, score: 0, memberCount: 0
+        });
+        continue;
+      }
+
+      const { data: rows } = await supabase
+        .from('kpi_records')
+        .select('mCalls, eCalls, mConn, eConn, mSS, mPros, ePros, eSS, deals, followups, perfScore')
+        .eq('date', dateFilter)
+        .in('userId', ids);
+
+      let calls = 0, connects = 0, screenshots = 0, prospects = 0, sCalls = 0, deals = 0, followups = 0, score = 0;
+      (rows || []).forEach(r => {
+        calls += (r.mCalls || 0) + (r.eCalls || 0);
+        connects += (r.mConn || 0) + (r.eConn || 0);
+        screenshots += (r.mSS || 0);
+        prospects += (r.mPros || 0) + (r.ePros || 0);
+        sCalls += (r.eSS || 0);
+        deals += r.deals || 0;
+        followups += r.followups || 0;
+        score += r.perfScore || 0;
+      });
+
+      result.push({
+        id: team.id, name: team.name, leadName: team.users?.name || null, leadEmail: team.users?.email || null,
+        calls, connects, screenshots, prospects, sCalls, deals, followups,
+        score: rows?.length ? parseFloat((score / rows.length).toFixed(2)) : 0,
+        memberCount: ids.length,
+      });
+    }
+
+    return res.json({ teams: result });
+  } catch (error) {
+    console.error('Teams summary error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // GET /api/employees/teams/:teamId/bda-performance
 router.get('/teams/:teamId/bda-performance', authenticateToken, async (req, res) => {
   const { teamId } = req.params;
