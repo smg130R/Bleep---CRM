@@ -147,6 +147,20 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Login Page Responsive ── */
+@media (max-width: 1024px) {
+  .login-left { display: none !important; }
+  .login-right { flex: 0 0 100% !important; padding: 24px !important; }
+}
+@media (max-width: 480px) {
+  .login-right { padding: 16px !important; }
+}
+
 /* ── Sidebar ── */
 .sidebar {
   width: var(--sidebar-width);
