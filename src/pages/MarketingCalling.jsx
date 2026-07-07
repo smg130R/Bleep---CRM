@@ -5,6 +5,7 @@ const MarketingCalling = ({ showToast }) => {
   const [callingData, setCallingData] = useState([]);
   const [followUps, setFollowUps] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [followUpLoading, setFollowUpLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [fixing, setFixing] = useState(false);
   const [tab, setTab] = useState('pending');
@@ -26,7 +27,7 @@ const MarketingCalling = ({ showToast }) => {
 
   const fetchFollowUps = async () => {
     try {
-      setLoading(true);
+      setFollowUpLoading(true);
       const res = await fetch('/api/calling/follow-ups');
       if (res.ok) {
         const data = await res.json();
@@ -35,7 +36,7 @@ const MarketingCalling = ({ showToast }) => {
     } catch (err) {
       console.error('Error fetching follow-ups:', err);
     } finally {
-      setLoading(false);
+      setFollowUpLoading(false);
     }
   };
 
