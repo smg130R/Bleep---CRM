@@ -137,7 +137,7 @@ router.patch('/:id', authenticateToken, requireRoles(['bda']), async (req, res) 
       if (s === 'Follow-up') followupsCount++;
     });
 
-    // Determine time slot: MC1 (11-2), MC2 (3:15-5), Sales/Follow-up (5+)
+    // Determine time slot: MC1 (11-2), MC2 (3:15-5)
     const now = new Date();
     const currentHour = now.getHours() + now.getMinutes() / 60;
     const inSlot1 = currentHour >= 11 && currentHour < 14;
@@ -153,13 +153,14 @@ router.patch('/:id', authenticateToken, requireRoles(['bda']), async (req, res) 
 
     if (kpiErr && kpiErr.code !== 'PGRST116') throw kpiErr;
 
+    // eSS is Sales Calls — only modified by track-sales-call, never by this endpoint
+    const eSS = kpi ? kpi.eSS : 0;
     let mCalls = kpi ? kpi.mCalls : 0;
     let mConn = kpi ? kpi.mConn : 0;
     let mSS = kpi ? kpi.mSS : 0;
     let mPros = kpi ? kpi.mPros : 0;
     let eCalls = kpi ? kpi.eCalls : 0;
     let eConn = kpi ? kpi.eConn : 0;
-    let eSS = kpi ? kpi.eSS : 0;
     let ePros = kpi ? kpi.ePros : 0;
 
     if (!kpi) {
@@ -172,19 +173,25 @@ router.patch('/:id', authenticateToken, requireRoles(['bda']), async (req, res) 
         eConn = connectsCount;
         ePros = prospectsCount;
       } else {
-        eSS = callsCount;
+        // After 5 PM — calls still count as MC2 (evening slot)
+        eCalls = callsCount;
+        eConn = connectsCount;
+        ePros = prospectsCount;
       }
     } else {
       if (inSlot1) {
-        mCalls = Math.max(callsCount - eCalls - eSS, 0);
+        mCalls = Math.max(callsCount - eCalls, 0);
         mConn = Math.max(connectsCount - eConn, 0);
         mPros = prospectsCount;
       } else if (inSlot2) {
-        eCalls = Math.max(callsCount - mCalls - eSS, 0);
+        eCalls = Math.max(callsCount - mCalls, 0);
         eConn = Math.max(connectsCount - mConn, 0);
         ePros = prospectsCount;
       } else {
-        eSS = Math.max(callsCount - mCalls - eCalls, 0);
+        // After 5 PM — all calls count as MC2
+        eCalls = Math.max(callsCount - mCalls, 0);
+        eConn = Math.max(connectsCount - mConn, 0);
+        ePros = prospectsCount;
       }
     }
 
