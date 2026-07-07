@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Network, Users, Phone, PhoneCall, Trophy, ArrowLeft, ShieldAlert, Target, CheckCircle, Star } from 'lucide-react';
+import { Network, Users, Phone, PhoneCall, Trophy, ArrowLeft, ShieldAlert, Target, CheckCircle, Star, Loader } from 'lucide-react';
 
 const TeamStructure = ({ showToast }) => {
   const { user } = useAuth();
@@ -205,33 +205,37 @@ const TeamStructure = ({ showToast }) => {
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Individual BDA Productivity Logs</h3>
           </div>
           <div className="table-responsive">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>BDA Name</th>
-                  <th>MC1 Calls (11-2)</th>
-                  <th>MC1 Conn</th>
-                  <th>MC1 Pros</th>
-                  <th>MC2 Calls (3:15-5)</th>
-                  <th>MC2 Conn</th>
-                  <th>MC2 Pros</th>
-                  <th>Screenshots</th>
-                  <th>Sales Calls</th>
-                  <th>Deals</th>
-                  <th>Follow-ups</th>
-                  <th style={{ minWidth: '150px' }}>Score</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
+              <table className="data-table">
+                <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
+                  <tr>
+                    <th style={{ background: 'var(--bg-card)' }}>BDA Name</th>
+                    <th style={{ background: 'var(--bg-card)' }}>MC1 Calls (11-2)</th>
+                    <th style={{ background: 'var(--bg-card)' }}>MC1 Conn</th>
+                    <th style={{ background: 'var(--bg-card)' }}>MC1 Pros</th>
+                    <th style={{ background: 'var(--bg-card)' }}>MC2 Calls (3:15-5)</th>
+                    <th style={{ background: 'var(--bg-card)' }}>MC2 Conn</th>
+                    <th style={{ background: 'var(--bg-card)' }}>MC2 Pros</th>
+                    <th style={{ background: 'var(--bg-card)' }}>Screenshots</th>
+                    <th style={{ background: 'var(--bg-card)' }}>Sales Calls</th>
+                    <th style={{ background: 'var(--bg-card)' }}>Deals</th>
+                    <th style={{ background: 'var(--bg-card)' }}>Follow-ups</th>
+                    <th style={{ minWidth: '150px', background: 'var(--bg-card)' }}>Score</th>
+                    <th style={{ background: 'var(--bg-card)' }}>Status</th>
+                  </tr>
+                </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={13} style={{ textAlign: 'center', padding: '2rem' }}>Loading team stats...</td>
+                    <td colSpan={13} style={{ textAlign: 'center', padding: '3rem' }}>
+                      <Loader size={24} className="animate-spin" style={{ opacity: 0.5, marginBottom: '0.5rem' }} />
+                      <div style={{ color: 'var(--text-muted)' }}>Loading team stats...</div>
+                    </td>
                   </tr>
                 ) : !teamDetail.performance?.length ? (
                   <tr>
-                    <td colSpan={13} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                      No BDA records found for this team.
+                    <td colSpan={13} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                      <Users size={32} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
+                      <div>No BDA records found for this team today.</div>
                     </td>
                   </tr>
                 ) : (
@@ -287,10 +291,14 @@ const TeamStructure = ({ showToast }) => {
   return (
     <div className="view-section active" id="team-structure-view">
       {pageLoading ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Loading teams...</div>
+        <div style={{ textAlign: 'center', padding: '3rem' }}>
+          <Loader size={24} className="animate-spin" style={{ opacity: 0.5, marginBottom: '0.5rem' }} />
+          <div style={{ color: 'var(--text-muted)' }}>Loading teams...</div>
+        </div>
       ) : visibleTeams.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-          No teams found. Create teams from the Employee Management page.
+          <Network size={32} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
+          <div>No teams found. Create teams from the Employee Management page.</div>
         </div>
       ) : (
         <div className="team-grid" id="team-cards-container">
@@ -308,35 +316,40 @@ const TeamStructure = ({ showToast }) => {
                     <h3>Team {team.id} Division</h3>
                     <p>Lead: {team.leadName || 'Unassigned'}</p>
                   </div>
-                  {stats && (
+                  {stats ? (
                     <div className="team-card-stats">
                       <div className="team-stat">
-                        <Phone size={14} />
+                        <Phone size={13} />
                         <span>{stats.calls}</span>
                         <label>Calls</label>
                       </div>
                       <div className="team-stat">
-                        <CheckCircle size={14} />
+                        <CheckCircle size={13} />
                         <span>{stats.connects}</span>
                         <label>Conn</label>
                       </div>
                       <div className="team-stat">
-                        <Target size={14} />
+                        <Target size={13} />
                         <span>{stats.prospects}</span>
                         <label>Pros</label>
                       </div>
                       <div className="team-stat">
-                        <Trophy size={14} />
+                        <Trophy size={13} />
                         <span>{stats.deals}</span>
                         <label>Deals</label>
                       </div>
                       <div className="team-stat">
-                        <Star size={14} />
+                        <Star size={13} />
                         <span>{stats.score}%</span>
                         <label>Score</label>
                       </div>
                     </div>
+                  ) : (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Today's stats unavailable</div>
                   )}
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.25rem', textAlign: 'right' }}>
+                    Click to view details →
+                  </div>
                 </div>
               </div>
             );

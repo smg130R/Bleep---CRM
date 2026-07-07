@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { RefreshCw, Search, Filter } from 'lucide-react';
+import { RefreshCw, Search, Filter, Loader } from 'lucide-react';
 
 const KpiBoard = ({ dateFilter, showToast }) => {
   const { user } = useAuth();
   const currentRole = user?.role;
 
   const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filterLead, setFilterLead] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [syncing, setSyncing] = useState(false);
 
   const fetchKpis = async () => {
     try {
+      setLoading(true);
       const res = await fetch(`/api/kpi/board-all?date=${new Date().toISOString().split('T')[0]}`);
       if (res.ok) {
         const data = await res.json();
@@ -20,6 +22,8 @@ const KpiBoard = ({ dateFilter, showToast }) => {
       }
     } catch (err) {
       console.error('Error fetching KPI Board:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -115,52 +119,59 @@ const KpiBoard = ({ dateFilter, showToast }) => {
       <div className="content-card" style={{ marginTop: '1.5rem', padding: '0', overflow: 'hidden' }}>
         <div className="table-responsive">
           <table className="data-table kpi-board-table">
-            <thead>
+            <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
               <tr>
-                <th style={{ position: 'sticky', left: 0, zIndex: 10, background: 'var(--bg-card)', borderRight: '1px solid var(--border-color)' }}>BDA Name</th>
-                <th>Team Lead</th>
+                <th style={{ background: 'var(--bg-card)' }}>BDA Name</th>
+                <th style={{ background: 'var(--bg-card)' }}>Team Lead</th>
                 
                 {/* Marketing Call 1 (11 AM - 2 PM) */}
-                <th style={{ borderLeft: '2px solid var(--border-color)', color: 'var(--accent-blue)', fontSize: '0.7rem' }} colSpan={3}>MC1 (11-2)</th>
+                <th style={{ borderLeft: '2px solid var(--border-color)', color: 'var(--accent-blue)', fontSize: '0.7rem', background: 'var(--bg-card)' }} colSpan={3}>MC1 (11-2)</th>
                 
                 {/* Marketing Call 2 (3:15 PM - 5 PM) */}
-                <th style={{ borderLeft: '2px solid var(--border-color)', color: 'var(--coral)', fontSize: '0.7rem' }} colSpan={3}>MC2 (3:15-5)</th>
+                <th style={{ borderLeft: '2px solid var(--border-color)', color: 'var(--coral)', fontSize: '0.7rem', background: 'var(--bg-card)' }} colSpan={3}>MC2 (3:15-5)</th>
                 
                 {/* Sales & Follow-up */}
-                <th style={{ borderLeft: '2px solid var(--border-color)', color: '#7c3aed', fontSize: '0.7rem' }} colSpan={2}>Sales & F/up</th>
+                <th style={{ borderLeft: '2px solid var(--border-color)', color: '#7c3aed', fontSize: '0.7rem', background: 'var(--bg-card)' }} colSpan={2}>Sales & F/up</th>
                 
-                <th>Total Prospects</th>
-                <th>Total Calls</th>
-                <th>Connects</th>
-                <th>Screenshots</th>
-                <th style={{ background: 'var(--success-light)' }}>Deals</th>
-                <th style={{ minWidth: '150px' }}>Score</th>
-                <th>Status</th>
+                <th style={{ background: 'var(--bg-card)' }}>Total Prospects</th>
+                <th style={{ background: 'var(--bg-card)' }}>Total Calls</th>
+                <th style={{ background: 'var(--bg-card)' }}>Connects</th>
+                <th style={{ background: 'var(--bg-card)' }}>Screenshots</th>
+                <th style={{ background: 'var(--bg-card)' }}>Deals</th>
+                <th style={{ minWidth: '150px', background: 'var(--bg-card)' }}>Score</th>
+                <th style={{ background: 'var(--bg-card)' }}>Status</th>
               </tr>
               <tr>
-                <th style={{ position: 'sticky', left: 0, zIndex: 10, background: 'var(--bg-card)', borderRight: '1px solid var(--border-color)' }}></th>
-                <th></th>
+                <th style={{ background: 'var(--bg-card)' }}></th>
+                <th style={{ background: 'var(--bg-card)' }}></th>
                 {/* MC1 sub-headers */}
-                <th style={{ borderLeft: '2px solid var(--border-color)', fontWeight: 500 }}>Calls</th>
-                <th style={{ fontWeight: 500 }}>Conn</th>
-                <th style={{ fontWeight: 500 }}>Pros</th>
+                <th style={{ borderLeft: '2px solid var(--border-color)', fontWeight: 500, background: 'var(--bg-card)' }}>Calls</th>
+                <th style={{ fontWeight: 500, background: 'var(--bg-card)' }}>Conn</th>
+                <th style={{ fontWeight: 500, background: 'var(--bg-card)' }}>Pros</th>
                 {/* MC2 sub-headers */}
-                <th style={{ borderLeft: '2px solid var(--border-color)', fontWeight: 500 }}>Calls</th>
-                <th style={{ fontWeight: 500 }}>Conn</th>
-                <th style={{ fontWeight: 500 }}>Pros</th>
+                <th style={{ borderLeft: '2px solid var(--border-color)', fontWeight: 500, background: 'var(--bg-card)' }}>Calls</th>
+                <th style={{ fontWeight: 500, background: 'var(--bg-card)' }}>Conn</th>
+                <th style={{ fontWeight: 500, background: 'var(--bg-card)' }}>Pros</th>
                 {/* Sales sub-headers */}
-                <th style={{ borderLeft: '2px solid var(--border-color)', fontWeight: 500 }}>F/ups</th>
-                <th style={{ fontWeight: 500 }}>Deals</th>
-                <th></th>
-                <th></th>
-                <th></th>
-                <th></th>
-                <th></th>
-                <th></th>
+                <th style={{ borderLeft: '2px solid var(--border-color)', fontWeight: 500, background: 'var(--bg-card)' }}>F/ups</th>
+                <th style={{ fontWeight: 500, background: 'var(--bg-card)' }}>Deals</th>
+                <th style={{ background: 'var(--bg-card)' }}></th>
+                <th style={{ background: 'var(--bg-card)' }}></th>
+                <th style={{ background: 'var(--bg-card)' }}></th>
+                <th style={{ background: 'var(--bg-card)' }}></th>
+                <th style={{ background: 'var(--bg-card)' }}></th>
+                <th style={{ background: 'var(--bg-card)' }}></th>
               </tr>
             </thead>
             <tbody id="kpi-board-tbody">
-              {filteredRecords.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={16} style={{ textAlign: 'center', padding: '3rem' }}>
+                    <Loader size={24} className="animate-spin" style={{ opacity: 0.5, marginBottom: '0.5rem' }} />
+                    <div style={{ color: 'var(--text-muted)' }}>Loading KPI Board...</div>
+                  </td>
+                </tr>
+              ) : filteredRecords.length === 0 ? (
                 <tr>
                   <td colSpan={16} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
                     No records found matching filters.
@@ -171,7 +182,7 @@ const KpiBoard = ({ dateFilter, showToast }) => {
                   const score = rec.perfScore;
                   return (
                     <tr key={idx}>
-                      <td style={{ position: 'sticky', left: 0, zIndex: 5, background: 'var(--bg-card)', fontWeight: 600, color: 'var(--primary-navy)', borderRight: '1px solid var(--border-color)' }}>
+                      <td style={{ fontWeight: 600, color: 'var(--primary-navy)', whiteSpace: 'nowrap' }}>
                         {rec.bdaName}
                       </td>
                       <td>{rec.teamLead || 'No Lead'}</td>
@@ -196,7 +207,7 @@ const KpiBoard = ({ dateFilter, showToast }) => {
                       <td>{rec.mCalls + rec.eCalls}</td>
                       <td>{rec.mConn + rec.eConn}</td>
                       <td>{rec.mSS}</td>
-                      <td style={{ background: 'var(--success-light)', fontWeight: 700, color: 'var(--success)' }}>
+                      <td style={{ fontWeight: 700, color: 'var(--success)' }}>
                         {rec.deals}
                       </td>
                       <td>

@@ -24,7 +24,8 @@ import {
   TrendingUp,
   DollarSign,
   Users,
-  Image
+  Image,
+  Loader
 } from 'lucide-react';
 
 ChartJS.register(
@@ -179,51 +180,86 @@ const Dashboard = ({ dateFilter }) => {
 
       {/* KPI Stats Grid */}
       <div className="dashboard-grid" id="dashboard-kpi-cards">
-        <div className="kpi-card blue">
-          <div className="kpi-card-header">
-            <span className="kpi-card-title">{isBDA ? "My Total Calls" : isTL ? "Team Calls" : "Total Marketing Calls"}</span>
-            <div className="kpi-card-icon"><Phone size={18} /></div>
-          </div>
-          <div className="kpi-card-value">{stats.calls ?? 0}</div>
-          <div className="kpi-card-footer">
-            <span className="kpi-trend up"><TrendingUp size={14} /> today</span>
-          </div>
-        </div>
+        {loading ? (
+          <>
+            {[1,2,3,4,5,6].map(i => (
+              <div key={i} className="kpi-card" style={{ opacity: 0.6 }}>
+                <div className="kpi-card-header">
+                  <div style={{ width: '60%', height: '14px', background: 'var(--border-color)', borderRadius: '4px' }} />
+                  <div style={{ width: '36px', height: '36px', background: 'var(--border-color)', borderRadius: '8px' }} />
+                </div>
+                <div style={{ width: '50%', height: '32px', background: 'var(--border-color)', borderRadius: '6px', marginTop: '0.5rem' }} />
+                <div style={{ width: '40%', height: '12px', background: 'var(--border-color)', borderRadius: '4px', marginTop: '0.5rem' }} />
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            <div className="kpi-card blue">
+              <div className="kpi-card-header">
+                <span className="kpi-card-title">{isBDA ? "My Total Calls" : isTL ? "Team Calls" : "Total Marketing Calls"}</span>
+                <div className="kpi-card-icon"><Phone size={18} /></div>
+              </div>
+              <div className="kpi-card-value">{stats.calls ?? 0}</div>
+              <div className="kpi-card-footer">
+                <span className="kpi-trend up"><TrendingUp size={14} /> today</span>
+              </div>
+            </div>
 
-        <div className="kpi-card green">
-          <div className="kpi-card-header">
-            <span className="kpi-card-title">Connected Calls</span>
-            <div className="kpi-card-icon"><PhoneIncoming size={18} /></div>
-          </div>
-          <div className="kpi-card-value">{stats.connects ?? 0}</div>
-          <div className="kpi-card-footer">
-            <span className="kpi-trend">
-              {stats.calls > 0 ? (((stats.connects ?? 0) / stats.calls) * 100).toFixed(1) : 0}% connection rate
-            </span>
-          </div>
-        </div>
+            <div className="kpi-card green">
+              <div className="kpi-card-header">
+                <span className="kpi-card-title">Connected Calls</span>
+                <div className="kpi-card-icon"><PhoneIncoming size={18} /></div>
+              </div>
+              <div className="kpi-card-value">{stats.connects ?? 0}</div>
+              <div className="kpi-card-footer">
+                <span className="kpi-trend">
+                  {stats.calls > 0 ? (((stats.connects ?? 0) / stats.calls) * 100).toFixed(1) : 0}% connection rate
+                </span>
+              </div>
+            </div>
 
-        <div className="kpi-card orange">
-          <div className="kpi-card-header">
-            <span className="kpi-card-title">Prospects Created</span>
-            <div className="kpi-card-icon"><UserPlus size={18} /></div>
-          </div>
-          <div className="kpi-card-value">{stats.prospects ?? 0}</div>
-          <div className="kpi-card-footer">
-            {stats.followups || stats.deals ? "Follow-ups due today" : "No follow-ups due"}
-          </div>
-        </div>
+            <div className="kpi-card orange">
+              <div className="kpi-card-header">
+                <span className="kpi-card-title">Prospects Created</span>
+                <div className="kpi-card-icon"><UserPlus size={18} /></div>
+              </div>
+              <div className="kpi-card-value">{stats.prospects ?? 0}</div>
+              <div className="kpi-card-footer">
+                {stats.followups || stats.deals ? "Follow-ups due today" : "No follow-ups due"}
+              </div>
+            </div>
 
-        <div className="kpi-card purple">
-          <div className="kpi-card-header">
-            <span className="kpi-card-title">{isBDA ? "My Deals Closed" : isTL ? "Team Closed Deals" : "Deals Closed"}</span>
-            <div className="kpi-card-icon"><ShoppingBag size={18} /></div>
-          </div>
-          <div className="kpi-card-value">{stats.deals ?? 0}</div>
-          <div className="kpi-card-footer">
-            <span className="kpi-trend up">{getRevenue()} Revenue Logged</span>
-          </div>
-        </div>
+            <div className="kpi-card purple">
+              <div className="kpi-card-header">
+                <span className="kpi-card-title">{isBDA ? "My Deals Closed" : isTL ? "Team Closed Deals" : "Deals Closed"}</span>
+                <div className="kpi-card-icon"><ShoppingBag size={18} /></div>
+              </div>
+              <div className="kpi-card-value">{stats.deals ?? 0}</div>
+              <div className="kpi-card-footer">
+                <span className="kpi-trend up">{getRevenue()} Revenue Logged</span>
+              </div>
+            </div>
+
+            <div className="kpi-card teal" style={{ '--card-accent': '#0d9488' }}>
+              <div className="kpi-card-header">
+                <span className="kpi-card-title">Screenshot Shared</span>
+                <div className="kpi-card-icon"><Image size={18} /></div>
+              </div>
+              <div className="kpi-card-value">{stats.screenshots ?? 0}</div>
+              <div className="kpi-card-footer">Today's screenshots</div>
+            </div>
+
+            <div className="kpi-card indigo" style={{ '--card-accent': '#6366f1' }}>
+              <div className="kpi-card-header">
+                <span className="kpi-card-title">Sales Calls</span>
+                <div className="kpi-card-icon"><Phone size={18} /></div>
+              </div>
+              <div className="kpi-card-value">{stats.sCalls ?? 0}</div>
+              <div className="kpi-card-footer">From Prospects page</div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Payment Tracking for BDA */}
@@ -243,14 +279,9 @@ const Dashboard = ({ dateFilter }) => {
             <div className="kpi-card-value">₹{(paymentStats.totalCollected || 0).toLocaleString()}</div>
           </div>
           <div className="kpi-card purple">
-            <div className="kpi-card-header"><span className="kpi-card-title">Screenshot Shared</span><Image size={18} /></div>
-            <div className="kpi-card-value">{stats.screenshots ?? 0}</div>
-            <div className="kpi-card-footer">today</div>
-          </div>
-          <div className="kpi-card red">
-            <div className="kpi-card-header"><span className="kpi-card-title">Sales Calls</span><Phone size={18} /></div>
-            <div className="kpi-card-value">{stats.sCalls ?? 0}</div>
-            <div className="kpi-card-footer">after 5 PM</div>
+            <div className="kpi-card-header"><span className="kpi-card-title">Outstanding</span><TrendingUp size={18} /></div>
+            <div className="kpi-card-value">₹{(paymentStats.totalOutstanding || 0).toLocaleString()}</div>
+            <div className="kpi-card-footer">pending collection</div>
           </div>
         </div>
       )}
