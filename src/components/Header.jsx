@@ -1,99 +1,80 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { AlertCircle } from 'lucide-react';
+import { Bell, HelpCircle, Menu, AlertCircle } from 'lucide-react';
 
-const Header = ({ activePage, dateFilter, setDateFilter, onOpenComplaintModal }) => {
+const titleMap = {
+  dashboard: { title: 'Dashboard', subtitle: 'Overall performance & company metrics' },
+  'kpi-board': { title: 'KPI Board', subtitle: 'MC1 / MC2 / Sales & Follow-up performance' },
+  'team-structure': { title: 'Team Structure', subtitle: 'Company hierarchy & sales divisions' },
+  'team-lead-workspace': { title: 'Lead Workspace', subtitle: 'Master sheet & lead distribution' },
+  'employee-master': { title: 'Employee Master', subtitle: 'Company employee directory' },
+  'marketing-calling': { title: 'Marketing Calls', subtitle: 'Customer calling sheets' },
+  prospects: { title: 'Prospects', subtitle: 'Registrations & conversions' },
+  'follow-ups': { title: 'Follow-ups', subtitle: 'Pending callbacks & lead statuses' },
+  reports: { title: 'Reports', subtitle: 'Visual analytics & conversion ratios' },
+  'hr-desk': { title: 'HR Desk', subtitle: 'Announcements, leaves & milestones' },
+  settings: { title: 'Settings', subtitle: 'Integrations & KPI targets' },
+};
+
+const roleColors = {
+  admin: '#DC2626', ops_head: '#2563EB', hr: '#7C3AED',
+  team_lead: '#F59E0B', bda: '#16A34A',
+};
+const roleLabels = {
+  admin: 'Admin', ops_head: 'Ops Head', hr: 'HR Lead',
+  team_lead: 'Team Lead', bda: 'BDA',
+};
+
+const Header = ({ activePage, dateFilter, setDateFilter, onOpenComplaintModal, setSidebarOpen }) => {
   const { user } = useAuth();
   if (!user) return null;
 
-  const currentRole = user.role;
-
-  const titleMap = {
-    dashboard: { title: "Company Dashboard", subtitle: "Overall performance indicators & company metrics" },
-    'kpi-board': { title: "KPI Board", subtitle: "MC1 (11-2) / MC2 (3:15-5) / Sales & Follow-up performance" },
-    'team-structure': { title: "Team Structure", subtitle: "Company hierarchy tree & sales division cards" },
-    'team-lead-workspace': { title: "Lead Workspace", subtitle: "Master sheet management & lead distribution" },
-    'employee-master': { title: "Employee Master", subtitle: "Active company employee profiles & directory" },
-    'marketing-calling': { title: "Marketing Calls", subtitle: "Assigned customer calling sheets" },
-    'prospects': { title: "Prospect & Registration Log", subtitle: "Track registrations and prospect conversions" },
-    'follow-ups': { title: "Customer Follow-ups", subtitle: "Schedules of pending callbacks & lead statuses" },
-    reports: { title: "Visual Analytics Reports", subtitle: "Data visualizations, conversion ratios & export catalogs" },
-    'hr-desk': { title: "HR Desk Support", subtitle: "Announcements, leaves, documentation & milestones" },
-    settings: { title: "Platform Settings", subtitle: "Google Sheets linking, sync scheduling & KPI targets" }
-  };
-
-  const pageInfo = titleMap[activePage] || { title: 'Bleep CRM', subtitle: 'Office Management Board' };
-
-  // Role names mappings for header card
-  const roleDisplayNames = {
-    admin: 'Admin',
-    ops_head: 'Operations Head',
-    hr: 'HR Lead',
-    team_lead: 'Team Lead',
-    bda: 'BDA'
-  };
-
-  const roleColors = {
-    admin: 'var(--danger)',
-    ops_head: 'var(--accent-blue)',
-    hr: 'var(--purple)',
-    team_lead: 'var(--warning)',
-    bda: 'var(--success)'
-  };
-
-  const roleAvatar = currentRole.slice(0, 2).toUpperCase();
+  const info = titleMap[activePage] || { title: 'Bleep CRM', subtitle: '' };
 
   return (
     <header className="app-header">
       <div className="header-left">
-        <img src="/logo.jpg" alt="" style={{ width: '28px', height: '28px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
-        <div className="header-title-wrapper">
-          <h1 id="header-page-title">{pageInfo.title}</h1>
-          <p id="header-page-subtitle">{pageInfo.subtitle}</p>
+        <button className="btn-ghost" onClick={() => setSidebarOpen(true)}
+          style={{ display: 'none', padding: 8 }} id="menu-toggle-btn">
+          <Menu size={20} />
+        </button>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>{info.title}</h1>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 1 }}>{info.subtitle}</p>
         </div>
       </div>
 
       <div className="header-right">
-        {/* Date Filter (Visible in Dashboard & KPI/Reports) */}
         {['dashboard', 'kpi-board', 'reports'].includes(activePage) && (
-          <div className="header-date-filter" id="header-date-filter">
-            {['Today', '7 Days', '30 Days'].map(days => (
-              <button
-                key={days}
-                className={dateFilter === days ? 'active' : ''}
-                onClick={() => setDateFilter(days)}
-              >
-                {days}
-              </button>
+          <div className="header-date-filter">
+            {['Today', '7 Days', '30 Days'].map(d => (
+              <button key={d} className={dateFilter === d ? 'active' : ''} onClick={() => setDateFilter(d)}>{d}</button>
             ))}
           </div>
         )}
 
-        {/* Complaint Button (Only for BDA role) */}
-        {currentRole === 'bda' && (
-          <button 
-            className="btn btn-primary" 
-            id="bda-file-complaint-btn"
-            onClick={onOpenComplaintModal}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'var(--danger)', border: 'none' }}
-          >
-            <AlertCircle size={16} />
-            File Complaint
+        {user.role === 'bda' && (
+          <button className="btn btn-danger" onClick={onOpenComplaintModal} style={{ height: 36, padding: '0 14px', fontSize: 13 }}>
+            <AlertCircle size={14} /> File Complaint
           </button>
         )}
 
-        {/* User Card */}
+        <button className="header-icon-btn" title="Notifications">
+          <Bell size={18} />
+          <span className="header-icon-badge" />
+        </button>
+
+        <button className="header-icon-btn" title="Help">
+          <HelpCircle size={18} />
+        </button>
+
         <div className="header-profile-card">
-          <div 
-            className="header-avatar" 
-            id="header-profile-avatar"
-            style={{ backgroundColor: roleColors[currentRole] || 'var(--accent-blue)' }}
-          >
-            {roleAvatar}
+          <div className="header-avatar" style={{ background: roleColors[user.role] || '#2563EB' }}>
+            {user.role.slice(0, 2).toUpperCase()}
           </div>
-          <div className="profile-info">
-            <span className="profile-name" id="header-profile-name">{user.name}</span>
-            <span className="profile-role" id="header-profile-role">{roleDisplayNames[currentRole]}</span>
+          <div className="header-profile-info">
+            <span className="header-profile-name">{user.name}</span>
+            <span className="header-profile-role">{roleLabels[user.role] || user.role}</span>
           </div>
         </div>
       </div>

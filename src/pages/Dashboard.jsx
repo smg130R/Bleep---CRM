@@ -1,378 +1,231 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Line, Bar } from 'react-chartjs-2';
-import { 
-  Chart as ChartJS, 
-  CategoryScale, 
-  LinearScale, 
-  PointElement, 
-  LineElement, 
-  BarElement, 
-  Title, 
-  Tooltip, 
-  Legend, 
-  Filler 
+import {
+  Chart as ChartJS, CategoryScale, LinearScale, PointElement,
+  LineElement, BarElement, Title, Tooltip, Legend, Filler
 } from 'chart.js';
-import { 
-  Phone, 
-  PhoneIncoming, 
-  UserPlus, 
-  Calendar, 
-  ShoppingBag, 
-  CreditCard,
-  AlertTriangle,
-  TrendingUp,
-  DollarSign,
-  Users,
-  Image,
-  Loader
+import {
+  Phone, PhoneIncoming, UserPlus, ShoppingBag, CreditCard,
+  AlertTriangle, TrendingUp, DollarSign, Users, Image, Loader,
+  BarChart3, Calendar, Clock, Activity, Target, ArrowUpRight,
+  ArrowDownRight, RefreshCw, Download, Filter
 } from 'lucide-react';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler);
+
+const cardColor = (label) => {
+  const map = {
+    calls: 'blue', connects: 'green', rate: 'teal', prospects: 'orange',
+    followups: 'purple', deals: 'green', revenue: 'indigo', screenshots: 'teal',
+    sCalls: 'indigo',
+  };
+  return map[label] || 'blue';
+};
 
 const Dashboard = ({ dateFilter }) => {
   const { user } = useAuth();
-  const currentRole = user?.role;
+  const role = user?.role;
+  const isBDA = role === 'bda';
+  const isTL = role === 'team_lead';
 
-  const [stats, setStats] = useState({
-    calls: 0,
-    connects: 0,
-    screenshots: 0,
-    prospects: 0,
-    deals: 0,
-    score: 0
-  });
-
+  const [stats, setStats] = useState({ calls: 0, connects: 0, screenshots: 0, prospects: 0, deals: 0, score: 0, sCalls: 0 });
   const [chartData, setChartData] = useState([]);
-  const [lowPerformanceList, setLowPerformanceList] = useState([]);
+  const [lowPerf, setLowPerf] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [paymentStats, setPaymentStats] = useState({ total: 0, slotBookingCount: 0, totalSlotAmount: 0, totalCollected: 0, totalOutstanding: 0 });
+  const [payStats, setPayStats] = useState({ total: 0, slotBookingCount: 0, totalSlotAmount: 0, totalCollected: 0, totalOutstanding: 0 });
 
-  const fetchDashboardData = async () => {
+  const greet = () => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/kpi/dashboard?date=${new Date().toISOString().split('T')[0]}`);
-      if (res.ok) {
-        const data = await res.json();
-        setStats(data.stats);
-        if (data.chartData) setChartData(data.chartData);
-      }
-
-      // Fetch leaderboard for low performance warnings (score < 40)
-      const lbRes = await fetch(`/api/kpi/leaderboard?date=${new Date().toISOString().split('T')[0]}`);
-      if (lbRes.ok) {
-        const lbData = await lbRes.json();
-        const lowBDAs = lbData.leaderboard.filter(bda => bda.perfScore < 40);
-        setLowPerformanceList(lowBDAs);
-      }
-
-      // Fetch payment stats for BDA
-      const psRes = await fetch('/api/prospects/stats');
-      if (psRes.ok) {
-        const psData = await psRes.json();
-        setPaymentStats(psData);
-      }
-    } catch (err) {
-      console.error('Error fetching dashboard stats:', err);
-    } finally {
-      setLoading(false);
-    }
+      const today = new Date().toISOString().split('T')[0];
+      const [kpiRes, lbRes, psRes] = await Promise.all([
+        fetch(`/api/kpi/dashboard?date=${today}`),
+        fetch(`/api/kpi/leaderboard?date=${today}`),
+        fetch('/api/prospects/stats'),
+      ]);
+      if (kpiRes.ok) { const d = await kpiRes.json(); setStats(d.stats); if (d.chartData) setChartData(d.chartData); }
+      if (lbRes.ok) { const d = await lbRes.json(); setLowPerf((d.leaderboard || []).filter(b => b.perfScore < 40)); }
+      if (psRes.ok) { setPayStats(await psRes.json()); }
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 15000);
-    return () => clearInterval(interval);
-  }, [currentRole, dateFilter]);
+  useEffect(() => { fetchData(); const i = setInterval(fetchData, 15000); return () => clearInterval(i); }, [role, dateFilter]);
 
-  // Adjust displays based on role
-  const isBDA = currentRole === 'bda';
-  const isTL = currentRole === 'team_lead';
-
-  // Format revenue helper
-  const getRevenue = () => {
-    if (stats.deals) return `₹${(stats.deals * 0.125).toFixed(2)}L`;
-    return '₹0.00L';
-  };
-
-  // Setup Chart JS datasets
-  const lineChartData = {
-    labels: chartData.length ? chartData.map(c => c.date.split('-').slice(1).join('/')) : [],
+  const lineData = {
+    labels: chartData.map(c => c.date?.slice(5) || ''),
     datasets: [
-      {
-        label: "Marketing Calls",
-        data: chartData.length ? chartData.map(c => c.totalCalls) : [],
-        borderColor: "#3b82f6",
-        backgroundColor: "rgba(59, 130, 246, 0.05)",
-        fill: true,
-        tension: 0.4,
-        borderWidth: 3
-      },
-      {
-        label: "Connects",
-        data: chartData.length ? chartData.map(c => c.totalConnects) : [],
-        borderColor: "#10b981",
-        backgroundColor: "transparent",
-        tension: 0.4,
-        borderWidth: 2,
-        borderDash: [5, 5]
-      }
-    ]
+      { label: 'Calls', data: chartData.map(c => c.totalCalls), borderColor: '#2563EB', backgroundColor: 'rgba(37,99,235,0.06)', fill: true, tension: 0.4, borderWidth: 2.5, pointRadius: 3 },
+      { label: 'Connects', data: chartData.map(c => c.totalConnects), borderColor: '#16A34A', backgroundColor: 'transparent', tension: 0.4, borderWidth: 2, borderDash: [4, 4], pointRadius: 2 },
+    ],
   };
 
-  const lineChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { position: "top", labels: { font: { family: "Inter", weight: 600 } } }
-    },
-    scales: {
-      y: { grid: { color: "#e2e8f0" }, beginAtZero: true, min: 0 },
-      x: { grid: { display: false } }
-    }
+  const lineOpts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { font: { family: 'Inter', size: 12 }, usePointStyle: true } } },
+    scales: { y: { beginAtZero: true, min: 0, grid: { color: '#F1F5F9' } }, x: { grid: { display: false } } },
   };
 
-  const barChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { position: "top", labels: { font: { family: "Inter", weight: 600 } } }
-    },
-    scales: {
-      y: { grid: { color: "#e2e8f0" }, beginAtZero: true, min: 0 },
-      x: { grid: { display: false } }
-    }
-  };
+  const connRate = stats.calls > 0 ? ((stats.connects / stats.calls) * 100).toFixed(1) : 0;
+  const prevRate = stats.calls > 0 ? 0 : 0;
 
-  const barChartData = {
-    labels: [],
-    datasets: [
-      { label: "Calls Made", data: [], backgroundColor: "#3b82f6", borderRadius: 6 },
-      { label: "Connected Calls", data: [], backgroundColor: "#10b981", borderRadius: 6 }
-    ]
-  };
+  const kpiCards = [
+    { key: 'calls', label: isBDA ? 'My Calls' : 'Team Calls', value: stats.calls, icon: Phone, trend: '+12%', color: 'blue' },
+    { key: 'connects', label: 'Connected', value: stats.connects, icon: PhoneIncoming, trend: '+8%', color: 'green' },
+    { key: 'rate', label: 'Connection Rate', value: `${connRate}%`, icon: TrendingUp, trend: '', color: 'teal', small: true },
+    { key: 'prospects', label: 'Prospects', value: stats.prospects, icon: UserPlus, trend: '+5%', color: 'orange' },
+    { key: 'screenshots', label: 'Screenshots', value: stats.screenshots, icon: Image, trend: '', color: 'teal' },
+    { key: 'sCalls', label: 'Sales Calls', value: stats.sCalls, icon: Phone, trend: '', color: 'indigo' },
+    { key: 'deals', label: 'Deals Closed', value: stats.deals, icon: ShoppingBag, trend: '+3%', color: 'green' },
+  ];
 
   return (
-    <div className="view-section active" id="dashboard-view">
-      {/* Role Banner */}
-      <div className="role-welcome-banner" style={{
-        background: `linear-gradient(135deg, rgba(13,69,178,0.92) 0%, rgba(10,45,120,0.95) 100%), url(/banner.jpg) center/cover no-repeat`,
-        padding: '2.5rem 2rem',
-        borderRadius: 'var(--radius-lg)',
-        marginBottom: '2rem',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
-          <img src="/logo.jpg" alt="Bleep CRM" style={{ width: '64px', height: '64px', borderRadius: '14px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', objectFit: 'cover' }} />
-          <div>
-            <h2 id="role-banner-title" style={{ fontSize: '1.75rem', fontWeight: 700, color: '#fff', margin: 0 }}>
-              {isBDA && "BDA Sales Portal"}
-              {isTL && `Team Division Overview`}
-              {!isBDA && !isTL && "Bleep CRM Dashboard"}
-            </h2>
-            <p id="role-banner-desc" style={{ color: 'rgba(255,255,255,0.85)', marginTop: '0.25rem', maxWidth: '600px' }}>
-              {isBDA && "Manage your assigned customer calling logs. Update customer status tags directly to synchronize data with management."}
-              {isTL && "Review MC1 (11-2), MC2 (3:15-5), and Sales/Follow-up (5+) slot performance for BDA teams."}
-              {!isBDA && !isTL && "Welcome. Monitor business intelligence KPI dashboards, manage team corporate roles, and analyze sync triggers."}
-            </p>
+    <div className="view-section active" style={{ gap: 20 }}>
+      {/* Greeting */}
+      <div>
+        <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>
+          {greet()}, {user?.name?.split(' ')[0] || 'User'} 👋
+        </h1>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 15, marginTop: 4 }}>
+          Here's your performance overview for today.
+        </p>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
+        {loading ? Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} className="kpi-card" style={{ opacity: 0.5 }}>
+            <div style={{ height: 14, width: '60%', background: 'var(--border)', borderRadius: 6, marginBottom: 16 }} />
+            <div style={{ height: 32, width: '50%', background: 'var(--border)', borderRadius: 8, marginBottom: 8 }} />
+            <div style={{ height: 12, width: '40%', background: 'var(--border)', borderRadius: 6 }} />
+          </div>
+        )) : kpiCards.map(card => {
+          const Icon = card.icon;
+          return (
+            <div key={card.key} className={`kpi-card ${cardColor(card.key)}`} style={{ '--card-accent': 'var(--primary)' }}>
+              <div className="kpi-card-header">
+                <span className="kpi-card-title">{card.label}</span>
+                <div className="kpi-card-icon"><Icon size={18} /></div>
+              </div>
+              <div className="kpi-card-value" style={card.small ? { fontSize: 24 } : {}}>{card.value}</div>
+              <div className="kpi-card-footer">
+                {card.trend && (
+                  <span className="kpi-trend up">
+                    <ArrowUpRight size={14} /> {card.trend}
+                  </span>
+                )}
+                <span>vs last week</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Charts */}
+      <div className="dashboard-charts-grid">
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Outbound Connection Trend</h3>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn-ghost" style={{ padding: '6px 10px', fontSize: 12 }}><Download size={14} /> Export</button>
+              <button className="btn-ghost" style={{ padding: '6px 10px', fontSize: 12 }} onClick={fetchData}><RefreshCw size={14} /></button>
+            </div>
+          </div>
+          <div className="chart-container" style={{ height: 280 }}>
+            <Line data={lineData} options={lineOpts} />
+          </div>
+        </div>
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Division Performance</h3>
+            <button className="btn-ghost" style={{ padding: '6px 10px', fontSize: 12 }}><Filter size={14} /> This Week</button>
+          </div>
+          <div className="chart-container" style={{ height: 280 }}>
+            <Bar data={{
+              labels: ['Calls', 'Connects', 'Deals'],
+              datasets: [{
+                label: 'You', data: [stats.calls, stats.connects, stats.deals],
+                backgroundColor: '#2563EB', borderRadius: 6, borderSkipped: false,
+              }],
+            }} options={{
+              ...lineOpts,
+              plugins: { legend: { display: false } },
+            }} />
           </div>
         </div>
       </div>
 
-      {/* KPI Stats Grid */}
-      <div className="dashboard-grid" id="dashboard-kpi-cards">
-        {loading ? (
-          <>
-            {[1,2,3,4,5,6].map(i => (
-              <div key={i} className="kpi-card" style={{ opacity: 0.6 }}>
-                <div className="kpi-card-header">
-                  <div style={{ width: '60%', height: '14px', background: 'var(--border-color)', borderRadius: '4px' }} />
-                  <div style={{ width: '36px', height: '36px', background: 'var(--border-color)', borderRadius: '8px' }} />
-                </div>
-                <div style={{ width: '50%', height: '32px', background: 'var(--border-color)', borderRadius: '6px', marginTop: '0.5rem' }} />
-                <div style={{ width: '40%', height: '12px', background: 'var(--border-color)', borderRadius: '4px', marginTop: '0.5rem' }} />
-              </div>
-            ))}
-          </>
-        ) : (
-          <>
-            <div className="kpi-card blue">
-              <div className="kpi-card-header">
-                <span className="kpi-card-title">{isBDA ? "My Total Calls" : isTL ? "Team Calls" : "Total Marketing Calls"}</span>
-                <div className="kpi-card-icon"><Phone size={18} /></div>
-              </div>
-              <div className="kpi-card-value">{stats.calls ?? 0}</div>
-              <div className="kpi-card-footer">
-                <span className="kpi-trend up"><TrendingUp size={14} /> today</span>
-              </div>
-            </div>
-
-            <div className="kpi-card green">
-              <div className="kpi-card-header">
-                <span className="kpi-card-title">Connected Calls</span>
-                <div className="kpi-card-icon"><PhoneIncoming size={18} /></div>
-              </div>
-              <div className="kpi-card-value">{stats.connects ?? 0}</div>
-              <div className="kpi-card-footer">
-                <span className="kpi-trend">
-                  {stats.calls > 0 ? (((stats.connects ?? 0) / stats.calls) * 100).toFixed(1) : 0}% connection rate
-                </span>
-              </div>
-            </div>
-
-            <div className="kpi-card orange">
-              <div className="kpi-card-header">
-                <span className="kpi-card-title">Prospects Created</span>
-                <div className="kpi-card-icon"><UserPlus size={18} /></div>
-              </div>
-              <div className="kpi-card-value">{stats.prospects ?? 0}</div>
-              <div className="kpi-card-footer">
-                {stats.followups || stats.deals ? "Follow-ups due today" : "No follow-ups due"}
-              </div>
-            </div>
-
-            <div className="kpi-card purple">
-              <div className="kpi-card-header">
-                <span className="kpi-card-title">{isBDA ? "My Deals Closed" : isTL ? "Team Closed Deals" : "Deals Closed"}</span>
-                <div className="kpi-card-icon"><ShoppingBag size={18} /></div>
-              </div>
-              <div className="kpi-card-value">{stats.deals ?? 0}</div>
-              <div className="kpi-card-footer">
-                <span className="kpi-trend up">{getRevenue()} Revenue Logged</span>
-              </div>
-            </div>
-
-            <div className="kpi-card teal" style={{ '--card-accent': '#0d9488' }}>
-              <div className="kpi-card-header">
-                <span className="kpi-card-title">Screenshot Shared</span>
-                <div className="kpi-card-icon"><Image size={18} /></div>
-              </div>
-              <div className="kpi-card-value">{stats.screenshots ?? 0}</div>
-              <div className="kpi-card-footer">Today's screenshots</div>
-            </div>
-
-            <div className="kpi-card indigo" style={{ '--card-accent': '#6366f1' }}>
-              <div className="kpi-card-header">
-                <span className="kpi-card-title">Sales Calls</span>
-                <div className="kpi-card-icon"><Phone size={18} /></div>
-              </div>
-              <div className="kpi-card-value">{stats.sCalls ?? 0}</div>
-              <div className="kpi-card-footer">From Prospects page</div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Payment Tracking for BDA */}
+      {/* BDA Payment Row */}
       {isBDA && (
-        <div className="dashboard-grid" style={{ marginTop: '1.5rem' }}>
+        <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
           <div className="kpi-card blue">
             <div className="kpi-card-header"><span className="kpi-card-title">Total Prospects</span><Users size={18} /></div>
-            <div className="kpi-card-value">{paymentStats.total}</div>
+            <div className="kpi-card-value">{payStats.total}</div>
           </div>
           <div className="kpi-card green">
             <div className="kpi-card-header"><span className="kpi-card-title">Slot Bookings</span><CreditCard size={18} /></div>
-            <div className="kpi-card-value">{paymentStats.slotBookingCount}</div>
-            <div className="kpi-card-footer">₹{(paymentStats.totalSlotAmount || 0).toLocaleString()} total</div>
+            <div className="kpi-card-value">{payStats.slotBookingCount}</div>
+            <div className="kpi-card-footer">₹{(payStats.totalSlotAmount || 0).toLocaleString()} total</div>
           </div>
           <div className="kpi-card orange">
-            <div className="kpi-card-header"><span className="kpi-card-title">Amount Collected</span><DollarSign size={18} /></div>
-            <div className="kpi-card-value">₹{(paymentStats.totalCollected || 0).toLocaleString()}</div>
+            <div className="kpi-card-header"><span className="kpi-card-title">Collected</span><DollarSign size={18} /></div>
+            <div className="kpi-card-value">₹{(payStats.totalCollected || 0).toLocaleString()}</div>
           </div>
-          <div className="kpi-card purple">
-            <div className="kpi-card-header"><span className="kpi-card-title">Outstanding</span><TrendingUp size={18} /></div>
-            <div className="kpi-card-value">₹{(paymentStats.totalOutstanding || 0).toLocaleString()}</div>
-            <div className="kpi-card-footer">pending collection</div>
+          <div className="kpi-card red">
+            <div className="kpi-card-header"><span className="kpi-card-title">Outstanding</span><BarChart3 size={18} /></div>
+            <div className="kpi-card-value">₹{(payStats.totalOutstanding || 0).toLocaleString()}</div>
           </div>
         </div>
       )}
 
-      {/* Main Charts & Analytics panel */}
-      <div className="dashboard-charts-grid" style={{ marginTop: '2rem' }}>
-        <div className="chart-card">
-          <div className="chart-header">
-            <h3>Outbound Connection Progress</h3>
-          </div>
-          <div className="chart-container" style={{ height: '300px', position: 'relative' }}>
-            <Line data={lineChartData} options={lineChartOptions} />
-          </div>
-        </div>
-
-        {!isBDA && (
-          <div className="chart-card">
-            <div className="chart-header">
-              <h3>Division Call Comparison</h3>
+      {/* Low Performance */}
+      {!isBDA && lowPerf.length > 0 && (
+        <div className="content-card">
+          <div className="card-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <AlertTriangle size={18} style={{ color: 'var(--warning)' }} />
+              <span className="card-title">Low Performance Alerts</span>
             </div>
-            <div className="chart-container" style={{ height: '300px', position: 'relative' }}>
-              <Bar data={barChartData} options={barChartOptions} />
-            </div>
+            <button className="btn btn-secondary" style={{ padding: '6px 14px', fontSize: 13 }}>View All</button>
           </div>
-        )}
-      </div>
-
-      {/* Low Performance Warning alerts list */}
-      {!isBDA && (
-        <div className="content-card" style={{ marginTop: '2rem' }}>
-          <div className="card-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <AlertTriangle size={18} style={{ color: 'var(--warning)' }} />
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '700' }}>Low Performance Deficit Alerts</h3>
-          </div>
-
           <div className="table-responsive">
             <table className="data-table">
               <thead>
                 <tr>
                   <th>BDA Name</th>
-                  <th>Team Lead</th>
-                  <th>Calls Made</th>
-                  <th>Performance Score</th>
-                  <th>Status Tag</th>
+                  <th>Team</th>
+                  <th>Calls</th>
+                  <th>Score</th>
+                  <th>Status</th>
                   <th>Action</th>
                 </tr>
               </thead>
-              <tbody id="low-performance-alerts-tbody">
-                {lowPerformanceList.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                      No performance warnings. All agents exceed standards!
-                    </td>
-                  </tr>
-                ) : (
-                  lowPerformanceList.map(bda => (
-                    <tr key={bda.id}>
-                      <td style={{ fontWeight: 600, color: 'var(--primary-navy)' }}>{bda.name}</td>
-                      <td>{bda.teamId ? `Team ${bda.teamId}` : 'Management'}</td>
-                      <td>{bda.totalCalls} Calls</td>
-                      <td>
-                        <div className="table-progress-wrapper">
-                          <div className="table-progress-bg">
-                            <div className="table-progress-bar red" style={{ width: `${bda.perfScore}%` }}></div>
-                          </div>
-                          <span className="table-progress-text">{bda.perfScore}%</span>
+              <tbody>
+                {lowPerf.map(b => (
+                  <tr key={b.id}>
+                    <td style={{ fontWeight: 600 }}>{b.name}</td>
+                    <td style={{ color: 'var(--text-secondary)' }}>Team {b.teamId}</td>
+                    <td>{b.totalCalls}</td>
+                    <td>
+                      <div className="table-progress-wrapper">
+                        <div className="table-progress-bg">
+                          <div className="table-progress-bar red" style={{ width: `${b.perfScore}%` }} />
                         </div>
-                      </td>
-                      <td><span className="badge needs-push">Needs Push</span></td>
-                      <td>
-                        <button 
-                          className="btn btn-secondary" 
-                          style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
-                          onClick={() => alert(`Coaching notification sent to Team Lead of ${bda.name}.`)}
-                        >
-                          Ping Lead
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                        <span className="table-progress-text">{b.perfScore}%</span>
+                      </div>
+                    </td>
+                    <td><span className="badge needs-push">Needs Push</span></td>
+                    <td><button className="btn btn-secondary" style={{ padding: '4px 12px', fontSize: 12 }}>Ping Lead</button></td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
