@@ -222,27 +222,35 @@ function parseRowsWithHeaders(rows) {
     return [];
   }
 
-  const rawLeads = rows.slice(headerIdx + 1).map(row => ({
-    customerName: (row[map.customerName] || '').trim(),
-    contact: (row[map.contact] || '').trim(),
-    email: map.email !== undefined ? (row[map.email] || '').trim() : '',
-    college: map.college !== undefined ? (row[map.college] || '').trim() : '',
-    branch: map.branch !== undefined ? (row[map.branch] || '').trim() : '',
-    year: map.year !== undefined ? (row[map.year] || '').trim() : '',
-    domain: map.domain !== undefined ? (row[map.domain] || '').trim() : '',
-    month: map.month !== undefined ? (row[map.month] || '').trim() : '',
-    experience: map.experience !== undefined ? (row[map.experience] || '').trim() : '',
-    state: map.state !== undefined ? (row[map.state] || '').trim() : '',
-    status: map.status !== undefined ? (row[map.status] || '').trim() : '',
-    payment_status: map.payment_status !== undefined ? (row[map.payment_status] || '').trim() : '',
-    slot_amount: map.slot_amount !== undefined ? parseFloat(row[map.slot_amount]) || 0 : 0,
-    amount_paid: map.amount_paid !== undefined ? parseFloat(row[map.amount_paid]) || 0 : 0,
-    remaining: map.remaining !== undefined ? parseFloat(row[map.remaining]) || 0 : 0,
-    remarks: map.remarks !== undefined ? (row[map.remarks] || '').trim() : '',
-  })).filter(l => l.customerName && l.contact);
+  const result = [];
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    const customerName = (row[map.customerName] || '').trim();
+    const contact = (row[map.contact] || '').trim();
+    if (!customerName || !contact) continue;
 
-  // Run smart cleanup on every row to auto-fix swapped columns
-  return rawLeads.map(l => smartCleanRow(l));
+    result.push(smartCleanRow({
+      sheetRow: i + 1,  // 1-based sheet row number (row 1 = header)
+      customerName,
+      contact,
+      email: map.email !== undefined ? (row[map.email] || '').trim() : '',
+      college: map.college !== undefined ? (row[map.college] || '').trim() : '',
+      branch: map.branch !== undefined ? (row[map.branch] || '').trim() : '',
+      year: map.year !== undefined ? (row[map.year] || '').trim() : '',
+      domain: map.domain !== undefined ? (row[map.domain] || '').trim() : '',
+      month: map.month !== undefined ? (row[map.month] || '').trim() : '',
+      experience: map.experience !== undefined ? (row[map.experience] || '').trim() : '',
+      state: map.state !== undefined ? (row[map.state] || '').trim() : '',
+      status: map.status !== undefined ? (row[map.status] || '').trim() : '',
+      payment_status: map.payment_status !== undefined ? (row[map.payment_status] || '').trim() : '',
+      slot_amount: map.slot_amount !== undefined ? parseFloat(row[map.slot_amount]) || 0 : 0,
+      amount_paid: map.amount_paid !== undefined ? parseFloat(row[map.amount_paid]) || 0 : 0,
+      remaining: map.remaining !== undefined ? parseFloat(row[map.remaining]) || 0 : 0,
+      remarks: map.remarks !== undefined ? (row[map.remarks] || '').trim() : '',
+    }));
+  }
+
+  return result;
 }
 
 // Extract spreadsheet ID from a Google Sheets URL
@@ -335,4 +343,68 @@ async function importLeadsFromMasterSheet(spreadsheetId, tab = 'Sheet1') {
   }
 }
 
-module.exports = { startCronScheduler, runAllSyncs, syncBdaSheet, syncBdaProspects, pushBdaLeadsToSheet, extractSheetId, importLeadsFromMasterSheet, parseRowsWithHeaders };
+// Update a team's master Google Sheet to mark assigned leads with BDA name
+async function updateMasterSheetAssignments(spreadsheetId, tab, assignments) {
+  // assignments: [{ bdaName, sheetRow }] where sheetRow is 1-based row in the sheet
+  if (!assignments || assignments.length === 0) return;
+
+  const sheets = await getSheetsClient().catch(() => null);
+  if (!sheets || !spreadsheetId) {
+    console.log('[Simulated] Would update master sheet with assignments');
+    return;
+  }
+
+  try {
+    const range = `${tab || 'Sheet1'}!1:1`;
+    const headerResp = await sheets.spreadsheets.values.get({ spreadsheetId, range });
+    const headerRow = headerResp.data.values?.[0] || [];
+
+    // Determine which column to write assignments into
+    const assignAliases = ['assigned to', 'bda', 'bda name', 'assignee', 'status', 'assigned'];
+    let assignCol = -1;
+    for (let c = 0; c < headerRow.length; c++) {
+      const h = (headerRow[c] || '').toLowerCase().trim();
+      if (assignAliases.some(a => h.includes(a))) {
+        assignCol = c;
+        break;
+      }
+    }
+    if (assignCol === -1) {
+      // Find first empty header slot or append
+      assignCol = headerRow.length;
+      for (let c = 0; c < headerRow.length; c++) {
+        if (!headerRow[c] || !headerRow[c].trim()) { assignCol = c; break; }
+      }
+    }
+
+    const colLetter = String.fromCharCode(65 + assignCol); // A, B, C...
+    const colLetter2 = assignCol >= 26 ? String.fromCharCode(64 + Math.floor(assignCol / 26)) + String.fromCharCode(65 + assignCol % 26) : colLetter;
+
+    // Batch write: set header + BDA names for assigned rows
+    const updateValues = [[headerRow[assignCol] ? headerRow[assignCol] : 'Assigned To']];
+    const rowNumbers = [1]; // header is row 1
+
+    for (const a of assignments) {
+      if (a.sheetRow) {
+        updateValues.push([`Assigned to: ${a.bdaName}`]);
+        rowNumbers.push(a.sheetRow);
+      }
+    }
+
+    const requests = rowNumbers.map((r, idx) => ({
+      range: `${tab || 'Sheet1'}!${colLetter2}${r}`,
+      values: [updateValues[idx]],
+    }));
+
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId,
+      requestBody: { valueInputOption: 'RAW', data: requests },
+    });
+
+    console.log(`Updated ${assignments.length} assignments in master sheet`);
+  } catch (error) {
+    console.error('Error updating master sheet assignments:', error.message);
+  }
+}
+
+module.exports = { startCronScheduler, runAllSyncs, syncBdaSheet, syncBdaProspects, pushBdaLeadsToSheet, extractSheetId, importLeadsFromMasterSheet, parseRowsWithHeaders, updateMasterSheetAssignments };

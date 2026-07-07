@@ -293,6 +293,22 @@ router.post('/fetch-leads', authenticateToken, requireRoles(['bda']), async (req
 
     if (insertError) throw insertError;
 
+    // Update master sheet marking these leads as assigned
+    try {
+      const { data: team } = await supabase.from('teams').select('"masterSheetUrl"').eq('id', teamId).single();
+      if (team?.masterSheetUrl) {
+        const { extractSheetId, updateMasterSheetAssignments } = require('../services/sheetsSync');
+        const sheetId = extractSheetId(team.masterSheetUrl);
+        const bdaName = req.user.name || `BDA ${req.user.id}`;
+        const assignments = cleanLeads.filter(l => l.sheetRow).map(l => ({ bdaName, sheetRow: l.sheetRow }));
+        if (assignments.length > 0) {
+          await updateMasterSheetAssignments(sheetId, 'Sheet1', assignments);
+        }
+      }
+    } catch (masterErr) {
+      console.error('Master sheet update error (non-fatal):', masterErr.message);
+    }
+
     return res.json({
       message: `Fetched ${unassigned.length} new leads.`,
       count: unassigned.length,

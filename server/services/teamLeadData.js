@@ -53,6 +53,7 @@ async function addLeads(teamId, newLeads) {
         college: lead.college || '',
         branch: lead.branch || '',
         year: lead.year || '',
+        sheetRow: lead.sheetRow || null,
         status: 'unassigned',
         naCount: 0,
         assignedInMaster: false,
@@ -213,6 +214,35 @@ async function distributeLeads(teamId, assignedBy) {
     }
   } catch (pushErr) {
     console.error('Push to sheets error (non-fatal):', pushErr.message);
+  }
+
+  // Update master sheet with assignment info
+  try {
+    const masterSheetUrl = await getMasterSheetUrl(teamId);
+    if (masterSheetUrl) {
+      const { extractSheetId, updateMasterSheetAssignments } = require('./sheetsSync');
+      const sheetId = extractSheetId(masterSheetUrl);
+      const assignments = [];
+      let tmpIdx = 0;
+      let tmpRemainder = unassigned.length % bdas.length;
+      const tmpPerBda = Math.floor(unassigned.length / bdas.length);
+      for (const bda of bdas) {
+        const count = tmpPerBda + (tmpRemainder > 0 ? 1 : 0);
+        if (tmpRemainder > 0) tmpRemainder--;
+        const batch = unassigned.slice(tmpIdx, tmpIdx + count);
+        tmpIdx += count;
+        for (const lead of batch) {
+          if (lead.sheetRow) {
+            assignments.push({ bdaName: bda.name, sheetRow: lead.sheetRow });
+          }
+        }
+      }
+      if (assignments.length > 0) {
+        await updateMasterSheetAssignments(sheetId, 'Sheet1', assignments);
+      }
+    }
+  } catch (masterErr) {
+    console.error('Master sheet update error (non-fatal):', masterErr.message);
   }
 
   return { distributed: leadIdx, message: `Distributed ${leadIdx} leads to ${bdas.length} BDAs` };
