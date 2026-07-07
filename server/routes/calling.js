@@ -172,17 +172,19 @@ router.patch('/:id', authenticateToken, requireRoles(['bda']), async (req, res) 
         eConn = connectsCount;
         ePros = prospectsCount;
       } else {
-        // Sales/Follow-up slot: just deals/followups count (no call tracking needed)
+        eSS = callsCount;
       }
     } else {
       if (inSlot1) {
-        mCalls = Math.max(callsCount - eCalls, 0);
+        mCalls = Math.max(callsCount - eCalls - eSS, 0);
         mConn = Math.max(connectsCount - eConn, 0);
         mPros = prospectsCount;
       } else if (inSlot2) {
-        eCalls = Math.max(callsCount - mCalls, 0);
+        eCalls = Math.max(callsCount - mCalls - eSS, 0);
         eConn = Math.max(connectsCount - mConn, 0);
         ePros = prospectsCount;
+      } else {
+        eSS = Math.max(callsCount - mCalls - eCalls, 0);
       }
     }
 

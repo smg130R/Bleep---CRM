@@ -245,6 +245,11 @@ const Dashboard = ({ dateFilter }) => {
             <div className="kpi-card-value">{stats.screenshots ?? 0}</div>
             <div className="kpi-card-footer">today</div>
           </div>
+          <div className="kpi-card red">
+            <div className="kpi-card-header"><span className="kpi-card-title">Sales Calls</span><Phone size={18} /></div>
+            <div className="kpi-card-value">{stats.sCalls ?? 0}</div>
+            <div className="kpi-card-footer">after 5 PM</div>
+          </div>
         </div>
       )}
 

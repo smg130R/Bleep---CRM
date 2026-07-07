@@ -8,7 +8,7 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
   const dateFilter = req.query.date || new Date().toISOString().split('T')[0];
 
   try {
-    let stats = { calls: 0, connects: 0, screenshots: 0, prospects: 0, deals: 0, score: 0 };
+    let stats = { calls: 0, connects: 0, screenshots: 0, prospects: 0, deals: 0, score: 0, sCalls: 0 };
     let chartData = [];
 
     if (req.user.role === 'admin' || req.user.role === 'ops_head') {
@@ -76,9 +76,10 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
         rows.forEach(r => {
           stats.calls += (r.mCalls + r.eCalls);
           stats.connects += (r.mConn + r.eConn);
-          stats.screenshots += (r.mSS + r.eSS);
+          stats.screenshots += r.mSS;
           stats.prospects += (r.mPros + r.ePros);
           stats.deals += r.deals;
+          stats.sCalls += (r.eSS || 0);
           totalScore += r.perfScore;
         });
         stats.score = parseFloat((totalScore / rows.length).toFixed(2));
@@ -117,10 +118,11 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
         stats = {
           calls: row.mCalls + row.eCalls,
           connects: row.mConn + row.eConn,
-          screenshots: row.mSS + row.eSS,
+          screenshots: row.mSS,
           prospects: row.mPros + row.ePros,
           deals: row.deals,
-          score: row.perfScore
+          score: row.perfScore,
+          sCalls: row.eSS || 0
         };
       }
 
