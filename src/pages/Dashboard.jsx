@@ -170,7 +170,7 @@ const Dashboard = ({ dateFilter }) => {
         </h2>
         <p id="role-banner-desc">
           {isBDA && "Manage your assigned customer calling logs. Update customer status tags directly to synchronize data with management."}
-          {isTL && "Reviewing daily morning/evening slot calls for BDA teams. Address low performance tags and schedule callbacks."}
+          {isTL && "Review MC1 (11-2), MC2 (3:15-5), and Sales/Follow-up (5+) slot performance for BDA teams."}
           {!isBDA && !isTL && "Welcome. Monitor business intelligence KPI dashboards, manage team corporate roles, and analyze sync triggers."}
         </p>
       </div>

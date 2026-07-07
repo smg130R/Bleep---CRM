@@ -10,7 +10,7 @@ const Header = ({ activePage, dateFilter, setDateFilter, onOpenComplaintModal })
 
   const titleMap = {
     dashboard: { title: "Company Dashboard", subtitle: "Overall performance indicators & company metrics" },
-    'kpi-board': { title: "KPI Board", subtitle: "Real-time BDA morning & evening sales logs" },
+    'kpi-board': { title: "KPI Board", subtitle: "MC1 (11-2) / MC2 (3:15-5) / Sales & Follow-up performance" },
     'team-structure': { title: "Team Structure", subtitle: "Company hierarchy tree & sales division cards" },
     'team-lead-workspace': { title: "Lead Workspace", subtitle: "Master sheet management & lead distribution" },
     'employee-master': { title: "Employee Master", subtitle: "Active company employee profiles & directory" },

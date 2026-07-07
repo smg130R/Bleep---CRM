@@ -137,9 +137,11 @@ router.patch('/:id', authenticateToken, requireRoles(['bda']), async (req, res) 
       if (s === 'Follow-up') followupsCount++;
     });
 
-    // Determine morning/evening slot
-    const currentHour = new Date().getHours();
-    const isMorning = currentHour < 14;
+    // Determine time slot: MC1 (11-2), MC2 (3:15-5), Sales/Follow-up (5+)
+    const now = new Date();
+    const currentHour = now.getHours() + now.getMinutes() / 60;
+    const inSlot1 = currentHour >= 11 && currentHour < 14;
+    const inSlot2 = currentHour >= 15.25 && currentHour < 17;
 
     // Get today's KPI record
     const { data: kpi, error: kpiErr } = await supabase
@@ -161,26 +163,32 @@ router.patch('/:id', authenticateToken, requireRoles(['bda']), async (req, res) 
     let ePros = kpi ? kpi.ePros : 0;
 
     if (!kpi) {
-      if (isMorning) {
+      if (inSlot1) {
         mCalls = callsCount;
         mConn = connectsCount;
         mPros = prospectsCount;
-      } else {
+      } else if (inSlot2) {
         eCalls = callsCount;
         eConn = connectsCount;
         ePros = prospectsCount;
+      } else {
+        // Sales/Follow-up slot: just deals/followups count (no call tracking needed)
       }
     } else {
-      if (isMorning) {
+      if (inSlot1) {
         mCalls = Math.max(callsCount - eCalls, 0);
         mConn = Math.max(connectsCount - eConn, 0);
         mPros = prospectsCount;
-      } else {
+      } else if (inSlot2) {
         eCalls = Math.max(callsCount - mCalls, 0);
         eConn = Math.max(connectsCount - mConn, 0);
         ePros = prospectsCount;
       }
     }
+
+    // Track screenshots
+    const screenshotsCount = (allRecords || []).filter(r => r.status === 'SCREENSHOT SHARED').length;
+    mSS = Math.max(screenshotsCount, kpi?.mSS || 0);
 
     const totalCalls = mCalls + eCalls;
     const totalConn = mConn + eConn;
@@ -205,8 +213,8 @@ router.patch('/:id', authenticateToken, requireRoles(['bda']), async (req, res) 
       const { error: updateKpiErr } = await supabase
         .from('kpi_records')
         .update({
-          mCalls, mConn, mPros,
-          eCalls, eConn, ePros,
+          mCalls, mConn, mSS, mPros,
+          eCalls, eConn, eSS, ePros,
           deals: dealsCount,
           followups: followupsCount,
           perfScore

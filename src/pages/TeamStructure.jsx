@@ -179,13 +179,14 @@ const TeamStructure = ({ showToast }) => {
               <thead>
                 <tr>
                   <th>BDA Name</th>
-                  <th>M-Calls</th>
-                  <th>M-Connected</th>
-                  <th>M-Prospects</th>
-                  <th>E-Calls</th>
-                  <th>E-Connected</th>
-                  <th>E-Prospects</th>
-                  <th>Deals Closed</th>
+                  <th>MC1 Calls (11-2)</th>
+                  <th>MC1 Conn</th>
+                  <th>MC1 Pros</th>
+                  <th>MC2 Calls (3:15-5)</th>
+                  <th>MC2 Conn</th>
+                  <th>MC2 Pros</th>
+                  <th>Screenshots</th>
+                  <th>Deals</th>
                   <th>Follow-ups</th>
                   <th style={{ minWidth: '150px' }}>Score</th>
                   <th>Status</th>
@@ -194,11 +195,11 @@ const TeamStructure = ({ showToast }) => {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={11} style={{ textAlign: 'center', padding: '2rem' }}>Loading team stats...</td>
+                    <td colSpan={12} style={{ textAlign: 'center', padding: '2rem' }}>Loading team stats...</td>
                   </tr>
                 ) : !teamDetail.performance?.length ? (
                   <tr>
-                    <td colSpan={11} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                    <td colSpan={12} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                       No BDA records found for this team.
                     </td>
                   </tr>
@@ -220,6 +221,7 @@ const TeamStructure = ({ showToast }) => {
                         <td>{bda.eCalls}</td>
                         <td>{bda.eConn}</td>
                         <td>{bda.ePros}</td>
+                        <td>{bda.mSS || 0}</td>
                         <td style={{ fontWeight: 'bold', color: 'var(--success)' }}>{bda.deals}</td>
                         <td>{bda.followups}</td>
                         <td>

@@ -30,33 +30,21 @@ const KpiBoard = ({ dateFilter, showToast }) => {
   const handleSync = async () => {
     setSyncing(true);
     showToast('Syncing records with BDA Google Sheets...');
-    
-    // Call server to trigger sync
     setTimeout(async () => {
       await fetchKpis();
       setSyncing(false);
-      showToast('Synchronized morning & evening stats successfully!');
+      showToast('Synced successfully!');
     }, 1200);
   };
 
-  // Filter lists based on role and controls
   const filteredRecords = records.filter(rec => {
-    // Search match
     if (searchTerm && !rec.bdaName.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-    
-    // Team lead dropdown filter
     if (filterLead !== 'All' && rec.teamLead !== filterLead) return false;
-
-    // BDA role limits view
     if (currentRole === 'bda' && rec.bdaName !== user?.name) return false;
-
-    // Team lead limits to own team
     if (currentRole === 'team_lead' && rec.team !== user?.teamId) return false;
-
     return true;
   });
 
-  // Unique team leads from records for the filter dropdown
   const teamLeadOptions = [...new Set(records.map(r => r.teamLead).filter(Boolean))];
 
   const getStatusBadgeClass = (score) => {
@@ -132,33 +120,49 @@ const KpiBoard = ({ dateFilter, showToast }) => {
                 <th style={{ position: 'sticky', left: 0, zIndex: 10, background: 'var(--bg-card)', borderRight: '1px solid var(--border-color)' }}>BDA Name</th>
                 <th>Team Lead</th>
                 
-                {/* Morning Slot Section Headers */}
-                <th style={{ borderLeft: '2px solid var(--border-color)', color: 'var(--accent-blue)' }}>M-Calls</th>
-                <th style={{ color: 'var(--accent-blue)' }}>M-Connected</th>
-                <th style={{ color: 'var(--accent-blue)' }}>M-Screenshots</th>
-                <th style={{ borderRight: '2px solid var(--border-color)', color: 'var(--accent-blue)' }}>M-Prospects</th>
+                {/* Marketing Call 1 (11 AM - 2 PM) */}
+                <th style={{ borderLeft: '2px solid var(--border-color)', color: 'var(--accent-blue)', fontSize: '0.7rem' }} colSpan={3}>MC1 (11-2)</th>
                 
-                {/* Evening Slot Section Headers */}
-                <th style={{ color: 'var(--coral)' }}>E-Calls</th>
-                <th style={{ color: 'var(--coral)' }}>E-Connected</th>
-                <th style={{ color: 'var(--coral)' }}>E-Screenshots</th>
-                <th style={{ borderRight: '2px solid var(--border-color)', color: 'var(--coral)' }}>E-Prospects</th>
+                {/* Marketing Call 2 (3:15 PM - 5 PM) */}
+                <th style={{ borderLeft: '2px solid var(--border-color)', color: 'var(--coral)', fontSize: '0.7rem' }} colSpan={3}>MC2 (3:15-5)</th>
                 
-                {/* Totals */}
-                <th style={{ background: 'var(--accent-blue-light)' }}>Total Prospects</th>
-                <th>Marketing Calls</th>
-                <th>Connected Calls</th>
-                <th>Payment Links</th>
-                <th style={{ background: 'var(--success-light)' }}>Deals Closed</th>
-                <th>Follow-ups</th>
-                <th style={{ minWidth: '150px' }}>Performance Score</th>
+                {/* Sales & Follow-up */}
+                <th style={{ borderLeft: '2px solid var(--border-color)', color: '#7c3aed', fontSize: '0.7rem' }} colSpan={2}>Sales & F/up</th>
+                
+                <th>Total Prospects</th>
+                <th>Total Calls</th>
+                <th>Connects</th>
+                <th>Screenshots</th>
+                <th style={{ background: 'var(--success-light)' }}>Deals</th>
+                <th style={{ minWidth: '150px' }}>Score</th>
                 <th>Status</th>
+              </tr>
+              <tr>
+                <th style={{ position: 'sticky', left: 0, zIndex: 10, background: 'var(--bg-card)', borderRight: '1px solid var(--border-color)' }}></th>
+                <th></th>
+                {/* MC1 sub-headers */}
+                <th style={{ borderLeft: '2px solid var(--border-color)', fontWeight: 500 }}>Calls</th>
+                <th style={{ fontWeight: 500 }}>Conn</th>
+                <th style={{ fontWeight: 500 }}>Pros</th>
+                {/* MC2 sub-headers */}
+                <th style={{ borderLeft: '2px solid var(--border-color)', fontWeight: 500 }}>Calls</th>
+                <th style={{ fontWeight: 500 }}>Conn</th>
+                <th style={{ fontWeight: 500 }}>Pros</th>
+                {/* Sales sub-headers */}
+                <th style={{ borderLeft: '2px solid var(--border-color)', fontWeight: 500 }}>F/ups</th>
+                <th style={{ fontWeight: 500 }}>Deals</th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="kpi-board-tbody">
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={18} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                  <td colSpan={16} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
                     No records found matching filters.
                   </td>
                 </tr>
@@ -172,26 +176,29 @@ const KpiBoard = ({ dateFilter, showToast }) => {
                       </td>
                       <td>{rec.teamLead || 'No Lead'}</td>
                       
+                      {/* MC1 */}
                       <td style={{ borderLeft: '2px solid var(--border-color)' }}>{rec.mCalls}</td>
                       <td>{rec.mConn}</td>
-                      <td>{rec.mSS}</td>
-                      <td style={{ borderRight: '2px solid var(--border-color)', fontWeight: 600 }}>{rec.mPros}</td>
+                      <td style={{ fontWeight: 600 }}>{rec.mPros}</td>
                       
-                      <td>{rec.eCalls}</td>
+                      {/* MC2 */}
+                      <td style={{ borderLeft: '2px solid var(--border-color)' }}>{rec.eCalls}</td>
                       <td>{rec.eConn}</td>
-                      <td>{rec.eSS}</td>
-                      <td style={{ borderRight: '2px solid var(--border-color)', fontWeight: 600 }}>{rec.ePros}</td>
+                      <td style={{ fontWeight: 600 }}>{rec.ePros}</td>
                       
-                      <td style={{ background: 'var(--accent-blue-light)', fontWeight: 700, color: 'var(--accent-blue)' }}>
+                      {/* Sales */}
+                      <td style={{ borderLeft: '2px solid var(--border-color)' }}>{rec.followups}</td>
+                      <td>{rec.deals}</td>
+                      
+                      <td style={{ fontWeight: 700, color: 'var(--accent-blue)' }}>
                         {rec.mPros + rec.ePros}
                       </td>
                       <td>{rec.mCalls + rec.eCalls}</td>
                       <td>{rec.mConn + rec.eConn}</td>
-                      <td>{rec.pLink || 0}</td>
+                      <td>{rec.mSS}</td>
                       <td style={{ background: 'var(--success-light)', fontWeight: 700, color: 'var(--success)' }}>
                         {rec.deals}
                       </td>
-                      <td>{rec.followups}</td>
                       <td>
                         <div className="table-progress-wrapper">
                           <div className="table-progress-bg">
