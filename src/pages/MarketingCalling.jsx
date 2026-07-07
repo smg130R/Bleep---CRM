@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PhoneCall, Download, Filter, RefreshCw } from 'lucide-react';
+import { Download, Filter, RefreshCw } from 'lucide-react';
 
 const MarketingCalling = ({ showToast }) => {
   const [callingData, setCallingData] = useState([]);
@@ -114,11 +114,6 @@ const MarketingCalling = ({ showToast }) => {
 
   return (
     <div className="view-section active" id="marketing-calling-view">
-      <div className="auth-badge" style={{ margin: '0 0 1.5rem 0' }}>
-        <PhoneCall size={14} />
-        <span>Click customer numbers to initiate mobile/softphone dialing via tel: protocol.</span>
-      </div>
-
       <div className="content-card" style={{ marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -152,7 +147,6 @@ const MarketingCalling = ({ showToast }) => {
                 <th>College / Institute</th>
                 <th>Branch</th>
                 <th>Academic Year</th>
-                <th>Outbound Action</th>
                 <th>Calling Status</th>
                 <th>Last Update</th>
                 <th>Conversation Remarks / Logs</th>
@@ -161,11 +155,11 @@ const MarketingCalling = ({ showToast }) => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '2rem' }}>Loading calling records...</td>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>Loading calling records...</td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                     {pendingOnly
                       ? 'No pending leads. Click "Fetch 50 Leads" to get new ones.'
                       : 'No customer leads assigned.'}
@@ -175,24 +169,10 @@ const MarketingCalling = ({ showToast }) => {
                 filtered.map((row, idx) => (
                   <tr key={row.id}>
                     <td style={{ fontWeight: 600, color: 'var(--primary-navy)' }}>{row.customerName}</td>
-                    <td style={{ fontWeight: 500 }}>
-                      <a href={`tel:${row.contact}`} style={{ color: 'var(--accent-blue)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                        {row.contact}
-                      </a>
-                    </td>
+                    <td style={{ fontWeight: 500 }}>{row.contact}</td>
                     <td>{row.college}</td>
                     <td>{row.branch}</td>
                     <td>{row.year}</td>
-                    <td>
-                      <a
-                        href={`tel:${row.contact}`}
-                        className="btn btn-secondary"
-                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
-                      >
-                        <PhoneCall size={12} />
-                        Call
-                      </a>
-                    </td>
                     <td>
                       <select
                         className="table-select"
