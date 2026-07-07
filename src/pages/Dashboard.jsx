@@ -90,6 +90,8 @@ const Dashboard = ({ dateFilter }) => {
 
   useEffect(() => {
     fetchDashboardData();
+    const interval = setInterval(fetchDashboardData, 15000);
+    return () => clearInterval(interval);
   }, [currentRole, dateFilter]);
 
   // Adjust displays based on role
