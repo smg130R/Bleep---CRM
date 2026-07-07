@@ -165,17 +165,27 @@ const Dashboard = ({ dateFilter }) => {
   return (
     <div className="view-section active" id="dashboard-view">
       {/* Role Banner */}
-      <div className="role-welcome-banner">
-        <h2 id="role-banner-title">
-          {isBDA && "BDA Sales Portal"}
-          {isTL && `Team Division Overview`}
-          {!isBDA && !isTL && "Bleep CRM Dashboard"}
-        </h2>
-        <p id="role-banner-desc">
-          {isBDA && "Manage your assigned customer calling logs. Update customer status tags directly to synchronize data with management."}
-          {isTL && "Review MC1 (11-2), MC2 (3:15-5), and Sales/Follow-up (5+) slot performance for BDA teams."}
-          {!isBDA && !isTL && "Welcome. Monitor business intelligence KPI dashboards, manage team corporate roles, and analyze sync triggers."}
-        </p>
+      <div className="role-welcome-banner" style={{
+        background: `linear-gradient(135deg, rgba(13,69,178,0.92) 0%, rgba(10,45,120,0.95) 100%), url(/banner.jpg) center/cover no-repeat`,
+        padding: '2.5rem 2rem',
+        borderRadius: 'var(--radius-lg)',
+        marginBottom: '2rem',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+          <img src="/logo.jpg" alt="Bleep CRM" style={{ width: '64px', height: '64px', borderRadius: '14px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', objectFit: 'cover' }} />
+          <div>
+            <h2 id="role-banner-title" style={{ fontSize: '1.75rem', fontWeight: 700, color: '#fff', margin: 0 }}>
+              {isBDA && "BDA Sales Portal"}
+              {isTL && `Team Division Overview`}
+              {!isBDA && !isTL && "Bleep CRM Dashboard"}
+            </h2>
+            <p id="role-banner-desc" style={{ color: 'rgba(255,255,255,0.85)', marginTop: '0.25rem', maxWidth: '600px' }}>
+              {isBDA && "Manage your assigned customer calling logs. Update customer status tags directly to synchronize data with management."}
+              {isTL && "Review MC1 (11-2), MC2 (3:15-5), and Sales/Follow-up (5+) slot performance for BDA teams."}
+              {!isBDA && !isTL && "Welcome. Monitor business intelligence KPI dashboards, manage team corporate roles, and analyze sync triggers."}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* KPI Stats Grid */}

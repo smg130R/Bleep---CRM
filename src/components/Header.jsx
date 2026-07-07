@@ -46,6 +46,7 @@ const Header = ({ activePage, dateFilter, setDateFilter, onOpenComplaintModal })
   return (
     <header className="app-header">
       <div className="header-left">
+        <img src="/logo.jpg" alt="" style={{ width: '28px', height: '28px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
         <div className="header-title-wrapper">
           <h1 id="header-page-title">{pageInfo.title}</h1>
           <p id="header-page-subtitle">{pageInfo.subtitle}</p>

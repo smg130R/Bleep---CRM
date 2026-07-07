@@ -63,9 +63,7 @@ const Sidebar = ({ activePage, setActivePage, sidebarOpen, setSidebarOpen }) => 
     <aside id="sidebar" className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
       <div className="sidebar-header">
         <div className="brand-wrapper">
-          <div className="brand-icon">
-            <UserCheck2 size={20} />
-          </div>
+          <img src="/logo.jpg" alt="Bleep CRM" style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'cover' }} />
           <span className="brand-name white">Bleep CRM</span>
         </div>
       </div>
