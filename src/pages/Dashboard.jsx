@@ -23,7 +23,8 @@ import {
   AlertTriangle,
   TrendingUp,
   DollarSign,
-  Users
+  Users,
+  Image
 } from 'lucide-react';
 
 ChartJS.register(
@@ -239,10 +240,10 @@ const Dashboard = ({ dateFilter }) => {
             <div className="kpi-card-header"><span className="kpi-card-title">Amount Collected</span><DollarSign size={18} /></div>
             <div className="kpi-card-value">₹{(paymentStats.totalCollected || 0).toLocaleString()}</div>
           </div>
-          <div className="kpi-card red">
-            <div className="kpi-card-header"><span className="kpi-card-title">Outstanding</span><TrendingUp size={18} /></div>
-            <div className="kpi-card-value">₹{(paymentStats.totalOutstanding || 0).toLocaleString()}</div>
-            <div className="kpi-card-footer">pending collection</div>
+          <div className="kpi-card purple">
+            <div className="kpi-card-header"><span className="kpi-card-title">Screenshot Shared</span><Image size={18} /></div>
+            <div className="kpi-card-value">{stats.screenshots ?? 0}</div>
+            <div className="kpi-card-footer">today</div>
           </div>
         </div>
       )}
