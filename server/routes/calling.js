@@ -50,10 +50,30 @@ router.patch('/:id', authenticateToken, requireRoles(['bda']), async (req, res) 
     // Apply smart cleanup so lead matching uses corrected fields
     const cleanCustomer = smartCleanRow(customer);
 
-    // Update calling sheet
+    // Calculate follow-up date
+    const isFollowUp = status === 'Follow-up';
+    const isNoAnswer = status === 'No Answer';
+    const wasFollowUp = customer.status === 'Follow-up';
+    let followUpDate = null;
+    if (isFollowUp) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      followUpDate = tomorrow.toISOString().split('T')[0];
+    } else if (isNoAnswer && wasFollowUp) {
+      const nextDay = new Date();
+      nextDay.setDate(nextDay.getDate() + 1);
+      followUpDate = nextDay.toISOString().split('T')[0];
+    }
+
+    const updateFields = { status, remarks: remarks || '', lastUpdated: todayStr };
+    if (isFollowUp || (isNoAnswer && wasFollowUp)) {
+      updateFields.followUpDate = followUpDate;
+    } else if (wasFollowUp || customer.followUpDate) {
+      updateFields.followUpDate = null;
+    }
     await supabase
       .from('calling_sheet')
-      .update({ status, remarks: remarks || '', lastUpdated: todayStr })
+      .update(updateFields)
       .eq('id', id);
 
     // Sync status back to team lead data if this lead came from master sheet
@@ -380,6 +400,75 @@ router.post('/fix-data', authenticateToken, requireRoles(['bda', 'team_lead', 'a
   } catch (error) {
     console.error('Fix data error:', error);
     return res.status(500).json({ message: 'Error fixing data: ' + error.message });
+  }
+});
+
+// GET /api/calling/follow-ups - Get calling sheet records with follow-ups
+router.get('/follow-ups', authenticateToken, requireRoles(['bda', 'team_lead', 'admin', 'hr']), async (req, res) => {
+  try {
+    let query = supabase.from('calling_sheet').select('*');
+    if (req.user.role === 'bda') {
+      query = query.eq('assignedUserId', req.user.id);
+    } else if (req.user.role === 'team_lead' || req.user.role === 'hr') {
+      const { data: bdas } = await supabase.from('users').select('id').eq('teamId', req.user.teamId).eq('role', 'bda');
+      const bdaIds = (bdas || []).map(b => b.id);
+      if (bdaIds.length > 0) query = query.in('assignedUserId', bdaIds);
+      else return res.json({ followUps: [] });
+    }
+
+    const { data: list } = await query.not('followUpDate', 'is', null).order('followUpDate', { ascending: true });
+
+    const today = new Date().toISOString().split('T')[0];
+    const followUps = (list || []).map(row => ({
+      ...row,
+      isMissed: row.followUpDate < today,
+    }));
+
+    return res.json({ followUps });
+  } catch (error) {
+    console.error('Follow-ups error:', error);
+    return res.status(500).json({ message: 'Error fetching follow-ups: ' + error.message });
+  }
+});
+
+// GET /api/calling/missed-report - Missed follow-ups per BDA (HR/Admin)
+router.get('/missed-report', authenticateToken, requireRoles(['hr', 'admin', 'team_lead']), async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    let query = supabase.from('calling_sheet').select('id, "assignedUserId", status, "followUpDate", "customerName", "lastUpdated"');
+
+    if (req.user.role === 'team_lead' || req.user.role === 'hr') {
+      const { data: bdas } = await supabase.from('users').select('id, name').eq('teamId', req.user.teamId).eq('role', 'bda');
+      const bdaIds = (bdas || []).map(b => b.id);
+      if (bdaIds.length > 0) query = query.in('assignedUserId', bdaIds);
+      else return res.json({ report: [] });
+    }
+
+    const { data: rows } = await query.lt('followUpDate', today).not('status', 'eq', 'Completed');
+
+    const byBda = {};
+    for (const row of rows || []) {
+      if (!byBda[row.assignedUserId]) byBda[row.assignedUserId] = { missed: 0, leads: [] };
+      byBda[row.assignedUserId].missed++;
+      byBda[row.assignedUserId].leads.push(row.customerName);
+    }
+
+    // Enrich with BDA names
+    const bdaIds = Object.keys(byBda).filter(Boolean).map(Number);
+    const { data: bdaUsers } = await supabase.from('users').select('id, name').in('id', bdaIds);
+    const nameMap = Object.fromEntries((bdaUsers || []).map(u => [u.id, u.name]));
+
+    const report = Object.entries(byBda).map(([userId, d]) => ({
+      userId: Number(userId),
+      bdaName: nameMap[Number(userId)] || `BDA #${userId}`,
+      missedCount: d.missed,
+      leads: d.leads,
+    }));
+
+    return res.json({ report });
+  } catch (error) {
+    console.error('Missed report error:', error);
+    return res.status(500).json({ message: 'Error generating missed report: ' + error.message });
   }
 });
 

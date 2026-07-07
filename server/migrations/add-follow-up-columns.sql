@@ -1,0 +1,2 @@
+ALTER TABLE calling_sheet ADD COLUMN IF NOT EXISTS "followUpDate" TEXT;
+ALTER TABLE calling_sheet ADD COLUMN IF NOT EXISTS "missedCount" INTEGER DEFAULT 0;
