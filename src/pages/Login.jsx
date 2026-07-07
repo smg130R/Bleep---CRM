@@ -18,121 +18,107 @@ const Login = () => {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', fontFamily: 'Inter, sans-serif' }}>
-      {/* Left panel — branding */}
+    <div style={{
+      height: '100vh', width: '100vw', fontFamily: 'Inter, sans-serif',
+      background: `linear-gradient(135deg, rgba(13,69,178,0.88) 0%, rgba(10,45,120,0.94) 100%), url(/banner.jpg) center/cover no-repeat`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      position: 'relative', overflow: 'hidden',
+    }}>
+      {/* Decorative overlay */}
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 25% 40%, rgba(255,255,255,0.07) 0%, transparent 60%)' }} />
+
+      {/* Floating login card */}
       <div style={{
-        flex: 1,
-        background: `linear-gradient(135deg, rgba(13,69,178,0.92) 0%, rgba(10,45,120,0.97) 100%), url(/banner.jpg) center/cover no-repeat`,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '3rem',
-        position: 'relative',
-        overflow: 'hidden',
+        position: 'relative', zIndex: 1,
+        width: '100%', maxWidth: '420px',
+        background: 'rgba(255,255,255,0.12)',
+        backdropFilter: 'blur(16px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+        borderRadius: '20px',
+        padding: '2.5rem 2rem',
+        boxShadow: '0 16px 48px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15)',
+        border: '1px solid rgba(255,255,255,0.18)',
       }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 30% 50%, rgba(255,255,255,0.06) 0%, transparent 70%)' }} />
-        <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
-          <img src="/logo.jpg" alt="Bleep CRM" style={{ width: '96px', height: '96px', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', marginBottom: '1.5rem', objectFit: 'cover' }} />
-          <h1 style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 700, margin: 0 }}>Bleep CRM</h1>
-          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '1.05rem', marginTop: '0.5rem', maxWidth: '400px' }}>
-            Office management & KPI tracking platform
-          </p>
-          <div style={{ marginTop: '3rem', display: 'flex', gap: '2rem', justifyContent: 'center' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#fff' }}>KPI</div>
-              <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>Performance Tracking</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#fff' }}>CRM</div>
-              <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>Lead Management</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#fff' }}>BI</div>
-              <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>Analytics</div>
-            </div>
-          </div>
+        {/* Logo + brand */}
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <img src="/logo.jpg" alt="Bleep CRM" style={{ width: '64px', height: '64px', borderRadius: '16px', boxShadow: '0 4px 16px rgba(0,0,0,0.2)', objectFit: 'cover' }} />
+          <h1 style={{ color: '#fff', fontSize: '1.6rem', fontWeight: 700, margin: '0.75rem 0 0.2rem' }}>Bleep CRM</h1>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem', margin: 0 }}>Sign in to your account</p>
         </div>
-        <div style={{ position: 'absolute', bottom: '2rem', color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem' }}>
-          &copy; {new Date().getFullYear()} Bleep CRM. All rights reserved.
+
+        {error && (
+          <div style={{
+            backgroundColor: 'rgba(239,68,68,0.2)', color: '#fca5a5',
+            border: '1px solid rgba(239,68,68,0.3)',
+            borderRadius: '10px', padding: '0.7rem 1rem', fontSize: '0.85rem', marginBottom: '1.25rem',
+            backdropFilter: 'blur(4px)',
+          }}>
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: '1rem' }}>
+            <label htmlFor="email" style={{ display: 'block', fontWeight: 500, fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.3rem', letterSpacing: '0.3px', textTransform: 'uppercase' }}>Email</label>
+            <input
+              type="email" id="email" placeholder="name@company.com"
+              value={email} onChange={(e) => setEmail(e.target.value)} required
+              style={{
+                width: '100%', padding: '0.8rem 1rem', border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '10px', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box',
+                background: 'rgba(255,255,255,0.08)', color: '#fff',
+                transition: 'border-color 0.2s, background 0.2s',
+                boxSizing: 'border-box',
+              }}
+              onFocus={e => { e.target.style.borderColor = 'rgba(255,255,255,0.5)'; e.target.style.background = 'rgba(255,255,255,0.12)'; }}
+              onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.2)'; e.target.style.background = 'rgba(255,255,255,0.08)'; }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label htmlFor="password" style={{ display: 'block', fontWeight: 500, fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.3rem', letterSpacing: '0.3px', textTransform: 'uppercase' }}>Password</label>
+            <input
+              type="password" id="password" placeholder="••••••••"
+              value={password} onChange={(e) => setPassword(e.target.value)} required
+              style={{
+                width: '100%', padding: '0.8rem 1rem', border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '10px', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box',
+                background: 'rgba(255,255,255,0.08)', color: '#fff',
+                transition: 'border-color 0.2s, background 0.2s',
+                boxSizing: 'border-box',
+              }}
+              onFocus={e => { e.target.style.borderColor = 'rgba(255,255,255,0.5)'; e.target.style.background = 'rgba(255,255,255,0.12)'; }}
+              onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.2)'; e.target.style.background = 'rgba(255,255,255,0.08)'; }}
+            />
+          </div>
+
+          <button type="submit" style={{
+            width: '100%', padding: '0.85rem', background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+            color: '#fff', border: 'none', borderRadius: '10px', fontSize: '1rem', fontWeight: 600,
+            cursor: 'pointer', transition: 'opacity 0.2s, transform 0.15s',
+            boxShadow: '0 4px 12px rgba(37,99,235,0.3)',
+          }}
+            onMouseOver={e => e.target.style.opacity = '0.9'}
+            onMouseOut={e => e.target.style.opacity = '1'}
+            onMouseDown={e => e.target.style.transform = 'scale(0.98)'}
+            onMouseUp={e => e.target.style.transform = 'scale(1)'}
+          >
+            Sign In
+          </button>
+        </form>
+
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'center',
+          marginTop: '1.5rem', fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)',
+        }}>
+          <Info size={13} />
+          <span>Contact your administrator for credentials.</span>
         </div>
       </div>
 
-      {/* Right panel — login form */}
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '3rem',
-        background: '#f8fafc',
-      }}>
-        <div style={{ width: '100%', maxWidth: '400px' }}>
-          <div style={{ marginBottom: '2rem' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Welcome back</h2>
-            <p style={{ color: '#64748b', marginTop: '0.3rem', fontSize: '0.95rem' }}>Sign in to your account</p>
-          </div>
-
-          {error && (
-            <div style={{
-              backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca',
-              borderRadius: '8px', padding: '0.75rem 1rem', fontSize: '0.85rem', marginBottom: '1rem',
-            }}>
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: '1rem' }}>
-              <label htmlFor="email" style={{ display: 'block', fontWeight: 600, fontSize: '0.85rem', color: '#374151', marginBottom: '0.35rem' }}>Email Address</label>
-              <input
-                type="email" id="email" placeholder="name@company.com"
-                value={email} onChange={(e) => setEmail(e.target.value)} required
-                style={{
-                  width: '100%', padding: '0.75rem 1rem', border: '1px solid #d1d5db', borderRadius: '8px',
-                  fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box',
-                  transition: 'border-color 0.2s',
-                }}
-                onFocus={e => e.target.style.borderColor = '#0c45b2'}
-                onBlur={e => e.target.style.borderColor = '#d1d5db'}
-              />
-            </div>
-
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label htmlFor="password" style={{ display: 'block', fontWeight: 600, fontSize: '0.85rem', color: '#374151', marginBottom: '0.35rem' }}>Password</label>
-              <input
-                type="password" id="password" placeholder="••••••••"
-                value={password} onChange={(e) => setPassword(e.target.value)} required
-                style={{
-                  width: '100%', padding: '0.75rem 1rem', border: '1px solid #d1d5db', borderRadius: '8px',
-                  fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box',
-                  transition: 'border-color 0.2s',
-                }}
-                onFocus={e => e.target.style.borderColor = '#0c45b2'}
-                onBlur={e => e.target.style.borderColor = '#d1d5db'}
-              />
-            </div>
-
-            <button type="submit" style={{
-              width: '100%', padding: '0.8rem', background: 'linear-gradient(135deg, #0c45b2, #205FF0)',
-              color: '#fff', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: 600,
-              cursor: 'pointer', transition: 'opacity 0.2s',
-            }}
-              onMouseOver={e => e.target.style.opacity = '0.9'}
-              onMouseOut={e => e.target.style.opacity = '1'}
-            >
-              Sign In
-            </button>
-          </form>
-
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center',
-            marginTop: '1.5rem', fontSize: '0.8rem', color: '#94a3b8',
-          }}>
-            <Info size={14} />
-            <span>Contact your administrator for credentials.</span>
-          </div>
-        </div>
+      {/* Footer */}
+      <div style={{ position: 'absolute', bottom: '1.5rem', color: 'rgba(255,255,255,0.25)', fontSize: '0.75rem' }}>
+        &copy; {new Date().getFullYear()} Bleep CRM. All rights reserved.
       </div>
     </div>
   );
