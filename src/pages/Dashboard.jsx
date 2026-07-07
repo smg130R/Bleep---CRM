@@ -134,7 +134,19 @@ const Dashboard = ({ dateFilter }) => {
       legend: { position: "top", labels: { font: { family: "Inter", weight: 600 } } }
     },
     scales: {
-      y: { grid: { color: "#e2e8f0" } },
+      y: { grid: { color: "#e2e8f0" }, beginAtZero: true, min: 0 },
+      x: { grid: { display: false } }
+    }
+  };
+
+  const barChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: "top", labels: { font: { family: "Inter", weight: 600 } } }
+    },
+    scales: {
+      y: { grid: { color: "#e2e8f0" }, beginAtZero: true, min: 0 },
       x: { grid: { display: false } }
     }
   };
@@ -145,18 +157,6 @@ const Dashboard = ({ dateFilter }) => {
       { label: "Calls Made", data: [], backgroundColor: "#3b82f6", borderRadius: 6 },
       { label: "Connected Calls", data: [], backgroundColor: "#10b981", borderRadius: 6 }
     ]
-  };
-
-  const barChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { position: "top", labels: { font: { family: "Inter", weight: 600 } } }
-    },
-    scales: {
-      y: { grid: { color: "#e2e8f0" } },
-      x: { grid: { display: false } }
-    }
   };
 
   return (
