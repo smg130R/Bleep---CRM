@@ -220,9 +220,10 @@ async function distributeLeads(teamId, assignedBy) {
   try {
     const masterSheetUrl = await getMasterSheetUrl(teamId);
     if (masterSheetUrl) {
-      const { extractSheetId, updateMasterSheetAssignments } = require('./sheetsSync');
+      const { extractSheetId, updateMasterSheetAssignments, importLeadsFromMasterSheet } = require('./sheetsSync');
       const sheetId = extractSheetId(masterSheetUrl);
       const assignments = [];
+      const needsRowMatch = []; // leads without sheetRow
       let tmpIdx = 0;
       let tmpRemainder = unassigned.length % bdas.length;
       const tmpPerBda = Math.floor(unassigned.length / bdas.length);
@@ -234,6 +235,25 @@ async function distributeLeads(teamId, assignedBy) {
         for (const lead of batch) {
           if (lead.sheetRow) {
             assignments.push({ bdaName: bda.name, sheetRow: lead.sheetRow });
+          } else {
+            needsRowMatch.push({ lead, bdaName: bda.name });
+          }
+        }
+      }
+      // Match past leads (no sheetRow) by contact digits
+      if (needsRowMatch.length > 0) {
+        const sheetLeads = await importLeadsFromMasterSheet(sheetId);
+        const contactToRow = {};
+        for (const sl of sheetLeads) {
+          if (sl.sheetRow) {
+            const key = (sl.contact || '').replace(/\D/g, '');
+            if (key) contactToRow[key] = sl.sheetRow;
+          }
+        }
+        for (const item of needsRowMatch) {
+          const key = (item.lead.contact || '').replace(/\D/g, '');
+          if (contactToRow[key]) {
+            assignments.push({ bdaName: item.bdaName, sheetRow: contactToRow[key] });
           }
         }
       }

@@ -297,10 +297,34 @@ router.post('/fetch-leads', authenticateToken, requireRoles(['bda']), async (req
     try {
       const { data: team } = await supabase.from('teams').select('"masterSheetUrl"').eq('id', teamId).single();
       if (team?.masterSheetUrl) {
-        const { extractSheetId, updateMasterSheetAssignments } = require('../services/sheetsSync');
+        const { extractSheetId, updateMasterSheetAssignments, importLeadsFromMasterSheet } = require('../services/sheetsSync');
         const sheetId = extractSheetId(team.masterSheetUrl);
         const bdaName = req.user.name || `BDA ${req.user.id}`;
-        const assignments = cleanLeads.filter(l => l.sheetRow).map(l => ({ bdaName, sheetRow: l.sheetRow }));
+        const assignments = [];
+        const needsRowMatch = [];
+        for (const l of cleanLeads) {
+          if (l.sheetRow) {
+            assignments.push({ bdaName, sheetRow: l.sheetRow });
+          } else {
+            needsRowMatch.push(l);
+          }
+        }
+        if (needsRowMatch.length > 0) {
+          const sheetLeads = await importLeadsFromMasterSheet(sheetId);
+          const contactToRow = {};
+          for (const sl of sheetLeads) {
+            if (sl.sheetRow) {
+              const key = (sl.contact || '').replace(/\D/g, '');
+              if (key) contactToRow[key] = sl.sheetRow;
+            }
+          }
+          for (const l of needsRowMatch) {
+            const key = (l.contact || '').replace(/\D/g, '');
+            if (contactToRow[key]) {
+              assignments.push({ bdaName, sheetRow: contactToRow[key] });
+            }
+          }
+        }
         if (assignments.length > 0) {
           await updateMasterSheetAssignments(sheetId, 'Sheet1', assignments);
         }
