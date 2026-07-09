@@ -12,6 +12,7 @@ router.get('/', authenticateToken, requireRoles(['bda']), async (req, res) => {
       .from('calling_sheet')
       .select('*')
       .eq('assignedUserId', req.user.id)
+      .neq('status', 'Removed')
       .order('id', { ascending: true });
 
     if (error) throw error;
@@ -51,6 +52,7 @@ router.get('/team', authenticateToken, requireRoles(['team_lead', 'admin']), asy
       .from('calling_sheet')
       .select('*')
       .in('assignedUserId', bdaIds)
+      .neq('status', 'Removed')
       .order('id', { ascending: true });
 
     if (error) throw error;
@@ -70,7 +72,7 @@ router.get('/team', authenticateToken, requireRoles(['team_lead', 'admin']), asy
   }
 });
 
-// DELETE /api/calling/:id - Team lead removes a calling sheet entry (resets lead to unassigned, updates BDA sheet)
+// DELETE /api/calling/:id - Team lead removes a calling sheet entry (marks as Removed, resets lead to unassigned)
 router.delete('/:id', authenticateToken, requireRoles(['team_lead', 'admin']), async (req, res) => {
   const { id } = req.params;
   try {
@@ -86,12 +88,12 @@ router.delete('/:id', authenticateToken, requireRoles(['team_lead', 'admin']), a
 
     const bdaId = row.assignedUserId;
 
-    const { error: deleteErr } = await supabase
+    const { error: updateErr } = await supabase
       .from('calling_sheet')
-      .delete()
+      .update({ status: 'Removed', lastUpdated: new Date().toISOString().split('T')[0] })
       .eq('id', id);
 
-    if (deleteErr) throw deleteErr;
+    if (updateErr) throw updateErr;
 
     if (row.leadId && req.user.teamId) {
       const { error: leadErr } = await supabase
@@ -101,7 +103,7 @@ router.delete('/:id', authenticateToken, requireRoles(['team_lead', 'admin']), a
       if (leadErr) console.error('Lead reset error (non-fatal):', leadErr.message);
     }
 
-    // Refresh BDA's assigned sheet to reflect the removal
+    // Mark as "Deleted" in the BDA's Google Sheet (targeted cell update)
     try {
       const { data: bdaUser } = await supabase
         .from('users')
@@ -109,15 +111,15 @@ router.delete('/:id', authenticateToken, requireRoles(['team_lead', 'admin']), a
         .eq('id', bdaId)
         .single();
       if (bdaUser?.assignedSheetUrl) {
-        const { pushBdaLeadsToSheet, extractSheetId } = require('../services/sheetsSync');
+        const { markBdaSheetRowDeleted, extractSheetId } = require('../services/sheetsSync');
         const sid = extractSheetId(bdaUser.assignedSheetUrl);
-        await pushBdaLeadsToSheet(bdaId, sid, bdaUser.assignedSheetTab || 'Sheet1');
+        await markBdaSheetRowDeleted(sid, bdaUser.assignedSheetTab || 'Sheet1', row.customerName, row.contact);
       }
     } catch (sheetErr) {
-      console.error('BDA sheet update error (non-fatal):', sheetErr.message);
+      console.error('BDA sheet cell update error (non-fatal):', sheetErr.message);
     }
 
-    return res.json({ message: 'Calling sheet entry removed and lead reset to unassigned.' });
+    return res.json({ message: 'Calling sheet entry marked as Removed and lead reset to unassigned.' });
   } catch (error) {
     console.error('Delete calling sheet entry error:', error);
     return res.status(500).json({ message: 'Internal server error' });
@@ -227,12 +229,9 @@ router.patch('/:id', authenticateToken, requireRoles(['bda']), async (req, res) 
     const connectStatuses = ['Connected', 'Interested', 'NI', 'FORM SHARED', 'SCREENSHOT SHARED', 'Deal Closed'];
     (allRecords || []).forEach(rec => {
       const s = rec.status;
-      if (s !== 'Pending' && s !== 'unassigned') {
-        callsCount++;
-      }
-      if (connectStatuses.includes(s)) {
-        connectsCount++;
-      }
+      if (s === 'Removed' || s === 'Pending' || s === 'unassigned') return;
+      callsCount++;
+      if (connectStatuses.includes(s)) connectsCount++;
       if (s === 'Interested') prospectsCount++;
       if (s === 'Deal Closed') dealsCount++;
       if (s === 'Follow-up') followupsCount++;
@@ -564,7 +563,7 @@ router.post('/fix-data', authenticateToken, requireRoles(['bda', 'team_lead', 'a
 // GET /api/calling/follow-ups - Get calling sheet records with follow-ups
 router.get('/follow-ups', authenticateToken, requireRoles(['bda', 'team_lead', 'admin', 'hr']), async (req, res) => {
   try {
-    let query = supabase.from('calling_sheet').select('*');
+    let query = supabase.from('calling_sheet').select('*').neq('status', 'Removed');
     if (req.user.role === 'bda') {
       query = query.eq('assignedUserId', req.user.id);
     } else if (req.user.role === 'team_lead' || req.user.role === 'hr') {
@@ -593,7 +592,7 @@ router.get('/follow-ups', authenticateToken, requireRoles(['bda', 'team_lead', '
 router.get('/missed-report', authenticateToken, requireRoles(['hr', 'admin', 'team_lead']), async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
-    let query = supabase.from('calling_sheet').select('id, "assignedUserId", status, "followUpDate", "customerName", "lastUpdated"');
+    let query = supabase.from('calling_sheet').select('id, "assignedUserId", status, "followUpDate", "customerName", "lastUpdated"').neq('status', 'Removed');
 
     if (req.user.role === 'team_lead' || req.user.role === 'hr') {
       const { data: bdas } = await supabase.from('users').select('id, name').eq('teamId', req.user.teamId).eq('role', 'bda');

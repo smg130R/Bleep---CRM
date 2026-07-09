@@ -279,6 +279,7 @@ async function pushBdaLeadsToSheet(userId, spreadsheetId, tab) {
       .from('calling_sheet')
       .select('customerName, contact, college, branch, year, status, remarks')
       .eq('assignedUserId', userId)
+      .neq('status', 'Removed')
       .order('id');
 
     if (!leads || leads.length === 0) {
@@ -305,6 +306,55 @@ async function pushBdaLeadsToSheet(userId, spreadsheetId, tab) {
     return true;
   } catch (error) {
     console.error(`Error pushing leads for BDA ${userId}:`, error.message);
+    return false;
+  }
+}
+
+// Mark a specific row in a BDA's sheet as "Deleted" by matching customer name + contact
+async function markBdaSheetRowDeleted(spreadsheetId, tab, customerName, contact) {
+  const sheets = await getSheetsClient();
+  if (!sheets || !spreadsheetId) {
+    console.log(`[Simulated] Marking "${customerName}" as Deleted in sheet`);
+    return false;
+  }
+  try {
+    const range = `${tab || 'Sheet1'}!A1:G200`;
+    const response = await sheets.spreadsheets.values.get({ spreadsheetId, range });
+    const rows = response.data.values;
+    if (!rows || rows.length < 2) return false;
+
+    const headers = rows[0];
+    const statusCol = headers.findIndex(h => /status|stage|result/i.test(h || ''));
+    if (statusCol === -1) {
+      console.log('Could not find Status column in BDA sheet');
+      return false;
+    }
+
+    const colLetter = String.fromCharCode(65 + statusCol);
+    const colLetter2 = statusCol >= 26
+      ? String.fromCharCode(64 + Math.floor(statusCol / 26)) + String.fromCharCode(65 + statusCol % 26)
+      : colLetter;
+
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      const nameMatch = row[0] && row[0].trim().toLowerCase() === (customerName || '').trim().toLowerCase();
+      const contactMatch = row[1] && row[1].replace(/\D/g, '') === (contact || '').replace(/\D/g, '');
+      if (nameMatch && contactMatch) {
+        const cellRange = `${tab || 'Sheet1'}!${colLetter2}${i + 1}`;
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: cellRange,
+          valueInputOption: 'RAW',
+          requestBody: { values: [['Deleted']] },
+        });
+        console.log(`Marked row ${i + 1} as Deleted in BDA sheet`);
+        return true;
+      }
+    }
+    console.log(`Could not find matching row for "${customerName}" in BDA sheet`);
+    return false;
+  } catch (error) {
+    console.error(`Error marking row deleted in BDA sheet:`, error.message);
     return false;
   }
 }
@@ -407,4 +457,4 @@ async function updateMasterSheetAssignments(spreadsheetId, tab, assignments) {
   }
 }
 
-module.exports = { startCronScheduler, runAllSyncs, syncBdaSheet, syncBdaProspects, pushBdaLeadsToSheet, extractSheetId, importLeadsFromMasterSheet, parseRowsWithHeaders, updateMasterSheetAssignments };
+module.exports = { startCronScheduler, runAllSyncs, syncBdaSheet, syncBdaProspects, pushBdaLeadsToSheet, markBdaSheetRowDeleted, extractSheetId, importLeadsFromMasterSheet, parseRowsWithHeaders, updateMasterSheetAssignments };
