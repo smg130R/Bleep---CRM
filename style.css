@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
-:root {
+:root,
+[data-theme="light"] {
   /* Color System */
   --primary-navy: #0f172a;
   --secondary-slate: #1e293b;
@@ -43,6 +44,35 @@
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
   --radius-2xl: 1.5rem;
+}
+
+[data-theme="dark"] {
+  --primary-navy: #1e293b;
+  --secondary-slate: #0f172a;
+  --accent-blue: #60a5fa;
+  --accent-blue-light: #1e3a5f;
+  --success: #34d399;
+  --success-light: #064e3b;
+  --warning: #fbbf24;
+  --warning-light: #451a03;
+  --danger: #f87171;
+  --danger-light: #450a0a;
+  --info: #22d3ee;
+  --info-light: #083344;
+  --purple: #a78bfa;
+  --purple-light: #2e1065;
+  --coral: #fb923c;
+  --coral-light: #431407;
+  --bg-main: #0f172a;
+  --bg-card: #1e293b;
+  --border-color: #334155;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --text-white: #ffffff;
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
 }
 
 * {

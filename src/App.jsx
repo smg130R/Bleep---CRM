@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Toast from './components/Toast';
 import ComplaintModal from './components/ComplaintModal';
+import ProfileModal from './components/ProfileModal';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import KpiBoard from './pages/KpiBoard';
@@ -23,6 +24,7 @@ const MainApp = () => {
   const [dateFilter, setDateFilter] = useState('7 Days');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isComplaintModalOpen, setIsComplaintModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   
   // Global Toast State
   const [toastMessage, setToastMessage] = useState('');
@@ -86,6 +88,7 @@ const MainApp = () => {
           dateFilter={dateFilter}
           setDateFilter={setDateFilter}
           onOpenComplaintModal={() => setIsComplaintModalOpen(true)}
+          onOpenProfile={() => setIsProfileModalOpen(true)}
           setSidebarOpen={setSidebarOpen}
         />
         <style>{'#menu-toggle-btn { display: none; } @media (max-width: 1024px) { #menu-toggle-btn { display: inline-flex !important; } }'}</style>
@@ -111,6 +114,12 @@ const MainApp = () => {
         isOpen={isComplaintModalOpen}
         onClose={() => setIsComplaintModalOpen(false)}
         onSubmit={handleSubmitComplaint}
+      />
+
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        showToast={showToast}
       />
 
       <Toast 

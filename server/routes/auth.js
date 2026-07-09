@@ -16,6 +16,16 @@ async function findUserByAuthId(authId) {
   return data?.[0] || null;
 }
 
+async function findUserByAuthIdFull(authId) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('authId', authId)
+    .limit(1);
+  if (error) throw error;
+  return data?.[0] || null;
+}
+
 async function findUserByEmail(email) {
   const { data, error } = await supabase
     .from('users')
@@ -179,6 +189,53 @@ router.get('/me', authenticateToken, async (req, res) => {
     return res.json({ user });
   } catch (error) {
     console.error('Me error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// PUT /api/auth/profile - Update user profile
+router.put('/profile', authenticateToken, async (req, res) => {
+  const { name, phone, dob } = req.body;
+  try {
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+    if (phone !== undefined) updates.phone = phone;
+    if (dob !== undefined) updates.dob = dob;
+
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', req.user.id)
+      .select('id, name, email, role, phone, teamId, joinedDate')
+      .single();
+
+    if (error) throw error;
+    return res.json({ message: 'Profile updated', user: data });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// POST /api/auth/change-password - Change password via Supabase Auth
+router.post('/change-password', authenticateToken, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: 'Current and new password are required.' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ message: 'Password must be at least 6 characters.' });
+  }
+  try {
+    const userRecord = await findUserByAuthIdFull(req.user.id);
+    if (!userRecord || !userRecord.authId) {
+      return res.status(400).json({ message: 'Password change not available for this account type.' });
+    }
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) return res.status(400).json({ message: error.message });
+    return res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Change password error:', error);
     return res.status(500).json({ message: 'Internal server error' });
   }
 });

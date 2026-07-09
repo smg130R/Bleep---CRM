@@ -25,7 +25,7 @@ const roleLabels = {
   team_lead: 'Team Lead', bda: 'BDA',
 };
 
-const Header = ({ activePage, dateFilter, setDateFilter, onOpenComplaintModal, setSidebarOpen }) => {
+const Header = ({ activePage, dateFilter, setDateFilter, onOpenComplaintModal, setSidebarOpen, onOpenProfile }) => {
   const { user } = useAuth();
   if (!user) return null;
 
@@ -68,7 +68,7 @@ const Header = ({ activePage, dateFilter, setDateFilter, onOpenComplaintModal, s
           <HelpCircle size={18} />
         </button>
 
-        <div className="header-profile-card">
+        <div className="header-profile-card" onClick={onOpenProfile} style={{ cursor: 'pointer' }}>
           <div className="header-avatar" style={{ background: roleColors[user.role] || '#2563EB' }}>
             {user.role.slice(0, 2).toUpperCase()}
           </div>
