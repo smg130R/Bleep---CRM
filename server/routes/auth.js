@@ -97,6 +97,70 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// POST /api/auth/sso
+router.post('/sso', async (req, res) => {
+  const { access_token } = req.body;
+  if (!access_token) {
+    return res.status(400).json({ message: 'Access token is required.' });
+  }
+
+  try {
+    const { data: { user: authUser }, error } = await supabase.auth.getUser(access_token);
+    if (error || !authUser) {
+      return res.status(401).json({ message: 'Invalid or expired token.' });
+    }
+
+    let user = await findUserByAuthId(authUser.id);
+
+    if (!user) {
+      const email = authUser.email;
+      const name = authUser.user_metadata?.full_name || authUser.user_metadata?.name || email.split('@')[0];
+      const { data: newUser, error: createError } = await supabase
+        .from('users')
+        .insert([{
+          name,
+          email,
+          role: 'bda',
+          status: 'active',
+          authId: authUser.id,
+        }])
+        .select()
+        .single();
+      if (createError) throw createError;
+      user = newUser;
+    }
+
+    if (user.status !== 'active') {
+      return res.status(403).json({ message: 'Your account is suspended.' });
+    }
+
+    const payload = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      teamId: user.teamId,
+      phone: user.phone,
+      joinedDate: user.joinedDate,
+    };
+
+    const token = jwt.sign(payload, config.JWT_SECRET, { expiresIn: '8h' });
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 8 * 60 * 60 * 1000,
+    });
+
+    return res.json({ message: 'Login successful', user: payload });
+  } catch (error) {
+    console.error('SSO error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
   res.clearCookie('token', { httpOnly: true, secure: false, sameSite: 'lax', path: '/' });

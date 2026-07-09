@@ -23,6 +23,89 @@ router.get('/', authenticateToken, requireRoles(['bda']), async (req, res) => {
   }
 });
 
+// GET /api/calling/team - Team lead views calling sheets of BDAs in their team
+router.get('/team', authenticateToken, requireRoles(['team_lead', 'admin']), async (req, res) => {
+  try {
+    const teamId = req.user.teamId;
+    if (!teamId) {
+      return res.status(400).json({ message: 'You are not assigned to a team.' });
+    }
+
+    const { bdaId } = req.query;
+    const { data: bdas } = await supabase
+      .from('users')
+      .select('id, name')
+      .eq('teamId', teamId)
+      .eq('role', 'bda');
+
+    if (!bdas || bdas.length === 0) {
+      return res.json({ callingSheets: [], bdas: [] });
+    }
+
+    let bdaIds = bdas.map(b => b.id);
+    if (bdaId && bdaIds.includes(Number(bdaId))) {
+      bdaIds = [Number(bdaId)];
+    }
+
+    const { data: sheets, error } = await supabase
+      .from('calling_sheet')
+      .select('*')
+      .in('assignedUserId', bdaIds)
+      .order('id', { ascending: true });
+
+    if (error) throw error;
+
+    const bdaMap = Object.fromEntries(bdas.map(b => [b.id, b.name]));
+    const enriched = (sheets || []).map(row => ({
+      ...row,
+      bdaName: bdaMap[row.assignedUserId] || `BDA #${row.assignedUserId}`,
+    }));
+
+    const cleaned = enriched.map(smartCleanRow);
+
+    return res.json({ callingSheets: cleaned, bdas });
+  } catch (error) {
+    console.error('Get team calling sheets error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// DELETE /api/calling/:id - Team lead removes a calling sheet entry (resets lead to unassigned)
+router.delete('/:id', authenticateToken, requireRoles(['team_lead', 'admin']), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { data: row, error: fetchErr } = await supabase
+      .from('calling_sheet')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !row) {
+      return res.status(404).json({ message: 'Calling sheet entry not found.' });
+    }
+
+    const { error: deleteErr } = await supabase
+      .from('calling_sheet')
+      .delete()
+      .eq('id', id);
+
+    if (deleteErr) throw deleteErr;
+
+    if (row.leadId && req.user.teamId) {
+      const { error: leadErr } = await supabase
+        .from('leads')
+        .update({ status: 'unassigned', currentAssigneeId: null, updatedAt: new Date().toISOString().split('T')[0] })
+        .eq('id', row.leadId);
+      if (leadErr) console.error('Lead reset error (non-fatal):', leadErr.message);
+    }
+
+    return res.json({ message: 'Calling sheet entry removed and lead reset to unassigned.' });
+  } catch (error) {
+    console.error('Delete calling sheet entry error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // PATCH /api/calling/:id - Update status and remarks + Recalculate KPIs
 router.patch('/:id', authenticateToken, requireRoles(['bda']), async (req, res) => {
   const { id } = req.params;

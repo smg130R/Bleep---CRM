@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Sheet, Users, PhoneCall, RefreshCw, Download, AlertCircle, CheckCircle, ExternalLink, Save } from 'lucide-react';
+import { Sheet, Users, PhoneCall, RefreshCw, Download, AlertCircle, CheckCircle, ExternalLink, Save, Trash2, Loader } from 'lucide-react';
 
 const TeamLeadWorkspace = ({ showToast }) => {
   const { user } = useAuth();
@@ -14,6 +14,10 @@ const TeamLeadWorkspace = ({ showToast }) => {
   const [assignments, setAssignments] = useState([]);
   const [bdasWithSheets, setBdasWithSheets] = useState([]);
   const [editingSheet, setEditingSheet] = useState(null);
+  const [callingSheets, setCallingSheets] = useState([]);
+  const [selectedBda, setSelectedBda] = useState('');
+  const [callingLoading, setCallingLoading] = useState(false);
+  const [removingId, setRemovingId] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -22,8 +26,47 @@ const TeamLeadWorkspace = ({ showToast }) => {
       fetchBdas(),
       fetchAssignments(),
       fetchBdasWithSheets(),
+      fetchTeamCalling(),
     ]).finally(() => setLoading(false));
   }, []);
+
+  const fetchTeamCalling = async (bdaId) => {
+    setCallingLoading(true);
+    try {
+      const params = bdaId ? `?bdaId=${bdaId}` : '';
+      const res = await fetch(`/api/calling/team${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCallingSheets(data.callingSheets || []);
+        if (!bdaId && data.bdas?.length > 0) {
+          setBdas(data.bdas);
+        }
+      }
+    } catch (err) {
+      console.error('Fetch team calling error:', err);
+    } finally {
+      setCallingLoading(false);
+    }
+  };
+
+  const handleRemoveCallingEntry = async (entryId) => {
+    if (!window.confirm('Remove this lead from the calling sheet? The lead will be reset to unassigned.')) return;
+    setRemovingId(entryId);
+    try {
+      const res = await fetch(`/api/calling/${entryId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message);
+        fetchTeamCalling(selectedBda || undefined);
+      } else {
+        showToast(data.message || 'Failed to remove', true);
+      }
+    } catch (err) {
+      showToast('Connection error', true);
+    } finally {
+      setRemovingId(null);
+    }
+  };
 
   const fetchConfig = async () => {
     try {
@@ -301,6 +344,13 @@ const TeamLeadWorkspace = ({ showToast }) => {
           >
             BDA Sheets ({bdasWithSheets.length})
           </button>
+          <button
+            className={`btn ${tab === 'calling' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setTab('calling')}
+            style={{ borderRadius: 0, border: 'none', flex: 1 }}
+          >
+            <PhoneCall size={14} /> Calling Sheets ({callingSheets.length})
+          </button>
         </div>
 
         {tab === 'leads' && (
@@ -485,6 +535,85 @@ const TeamLeadWorkspace = ({ showToast }) => {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {tab === 'calling' && (
+          <div>
+            <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Filter by BDA:</label>
+              <select
+                className="table-select"
+                value={selectedBda}
+                onChange={e => { setSelectedBda(e.target.value); fetchTeamCalling(e.target.value || undefined); }}
+                style={{ width: '200px' }}
+              >
+                <option value="">All BDAs</option>
+                {bdas.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                {callingSheets.length} entries
+              </span>
+            </div>
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>BDA</th>
+                    <th>Customer</th>
+                    <th>Contact</th>
+                    <th>College</th>
+                    <th>Branch</th>
+                    <th>Year</th>
+                    <th>Status</th>
+                    <th>NA Count</th>
+                    <th>Last Updated</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {callingLoading ? (
+                    <tr>
+                      <td colSpan={10} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                        <Loader size={18} className="animate-spin" style={{ display: 'inline', marginRight: 8 }} />
+                        Loading...
+                      </td>
+                    </tr>
+                  ) : callingSheets.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                        No calling sheet entries found for your team's BDAs.
+                      </td>
+                    </tr>
+                  ) : (
+                    callingSheets.map(entry => (
+                      <tr key={entry.id}>
+                        <td style={{ fontWeight: 600 }}>{entry.bdaName}</td>
+                        <td>{entry.customerName}</td>
+                        <td><a href={`tel:${entry.contact}`} style={{ color: 'var(--accent-blue)' }}>{entry.contact}</a></td>
+                        <td style={{ fontSize: '0.8rem' }}>{entry.college}</td>
+                        <td style={{ fontSize: '0.8rem' }}>{entry.branch}</td>
+                        <td style={{ fontSize: '0.8rem' }}>{entry.year}</td>
+                        <td><span style={statusBadge((entry.status || 'pending').toLowerCase().replace(/\s+/g, '_'))}>{entry.status}</span></td>
+                        <td>{entry.naCount || 0}</td>
+                        <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{entry.lastUpdated}</td>
+                        <td>
+                          <button
+                            className="btn btn-danger"
+                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                            onClick={() => handleRemoveCallingEntry(entry.id)}
+                            disabled={removingId === entry.id}
+                          >
+                            {removingId === entry.id ? <Loader size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                            {' Remove'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
