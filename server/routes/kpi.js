@@ -342,6 +342,7 @@ function getDateRange(range) {
 router.get('/teams-breakdown', authenticateToken, async (req, res) => {
   const range = req.query.range || 'today';
   const { dates } = getDateRange(range);
+  console.log('[teams-breakdown] range=%s dates=%j query=%j', range, dates, req.query);
   try {
     const { data: teams } = await supabase.from('teams').select('id, name');
     if (!teams) return res.json({ teams: [] });
@@ -352,11 +353,12 @@ router.get('/teams-breakdown', authenticateToken, async (req, res) => {
       const ids = (bdas || []).map(b => b.id);
       if (ids.length === 0) continue;
 
-      const { data: rows } = await supabase
+      const { data: rows, error } = await supabase
         .from('kpi_records')
         .select('mCalls, eCalls, mConn, eConn, deals, perfScore')
         .in('userId', ids)
         .in('date', dates);
+      if (error) console.error('[teams-breakdown] supabase error:', error);
 
       let calls = 0, connects = 0, deals = 0, score = 0;
       (rows || []).forEach(r => {

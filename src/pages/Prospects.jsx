@@ -305,7 +305,7 @@ const Prospects = ({ showToast }) => {
                       <td><input className="table-input" value={editForm.domain} onChange={e => setEditForm({...editForm, domain: e.target.value})} onBlur={e => handleEditBlur(p.id, 'domain', e.target.value)} style={{ minWidth: '80px' }} /></td>
                       <td>
                         <select className="table-select" value={editForm.status} onChange={e => setEditForm({...editForm, status: e.target.value})} onBlur={e => handleEditBlur(p.id, 'status', e.target.value)}
-                          style={{ padding: '0.25rem 0.4rem', fontSize: '0.75rem', color: '#fff', backgroundColor: statusColor(editForm.status) }}>
+                          style={{ padding: '0.25rem 0.4rem', fontSize: '0.75rem', color: '#000', backgroundColor: statusColor(editForm.status) }}>
                           {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </td>
@@ -342,7 +342,7 @@ const Prospects = ({ showToast }) => {
                       <td style={{ fontSize: '0.8rem' }}>{p.domain || '-'}</td>
                       <td>
                         <select className="table-select" value={p.status} onChange={(e) => { e.stopPropagation(); handleFieldChange(p.id, 'status', e.target.value); }}
-                          style={{ padding: '0.25rem 0.4rem', fontSize: '0.75rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', color: '#fff', backgroundColor: statusColor(p.status) }}
+                          style={{ padding: '0.25rem 0.4rem', fontSize: '0.75rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', color: '#000', backgroundColor: statusColor(p.status) }}
                           onClick={e => e.stopPropagation()}>
                           {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
