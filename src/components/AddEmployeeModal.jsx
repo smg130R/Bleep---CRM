@@ -14,7 +14,6 @@ const AddEmployeeModal = ({ isOpen, onClose, onSave, currentRole }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState(allowedRoles[0]?.value || 'bda');
-  const [phone, setPhone] = useState('');
   const [employeeCode, setEmployeeCode] = useState('');
   const [teamId, setTeamId] = useState('');
   const [teamName, setTeamName] = useState('');
@@ -41,7 +40,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onSave, currentRole }) => {
       alert('Name, email, password, and role are required.');
       return;
     }
-    const payload = { name, email, password, role, phone, employeeCode };
+    const payload = { name, email, password, role, employeeCode };
     if (role === 'team_lead') {
       payload.teamName = teamName.trim() || null;
     } else {
@@ -52,7 +51,6 @@ const AddEmployeeModal = ({ isOpen, onClose, onSave, currentRole }) => {
     setEmail('');
     setPassword('');
     setRole(allowedRoles[0]?.value || 'bda');
-    setPhone('');
     setEmployeeCode('');
     setTeamId('');
     setTeamName('');
@@ -113,23 +111,12 @@ const AddEmployeeModal = ({ isOpen, onClose, onSave, currentRole }) => {
                 className="table-select"
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}
+                style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}
               >
                 {allowedRoles.map(r => (
                   <option key={r.value} value={r.value}>{r.label}</option>
                 ))}
               </select>
-            </div>
-
-            <div className="input-group">
-              <label htmlFor="emp-phone">Contact Number</label>
-                <input 
-                  type="text" 
-                  id="emp-phone" 
-                  placeholder="Contact number"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
             </div>
 
             <div className="input-group">
@@ -162,7 +149,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onSave, currentRole }) => {
                   className="table-select"
                   value={teamId}
                   onChange={(e) => setTeamId(e.target.value)}
-                  style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}
                 >
                   <option value="">None / Management</option>
                   {teams.map(t => (
