@@ -284,7 +284,12 @@ const MarketingCalling = ({ showToast }) => {
             onClick={() => navigator.clipboard.writeText(row.contact)}
             title="Click to copy"
           >
-            {row.contact}
+            <div>{row.contact}</div>
+            {row.whatsapp && row.whatsapp !== row.contact && (
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                WA: {row.whatsapp}
+              </div>
+            )}
           </td>
         );
       case 'college':
@@ -368,7 +373,12 @@ const MarketingCalling = ({ showToast }) => {
             onClick={() => navigator.clipboard.writeText(row.contact)}
             title="Click to copy"
           >
-            {row.contact}
+            <div>{row.contact}</div>
+            {row.whatsapp && row.whatsapp !== row.contact && (
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                WA: {row.whatsapp}
+              </div>
+            )}
           </td>
         );
       case 'college':

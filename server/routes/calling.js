@@ -385,6 +385,7 @@ router.post('/fetch-leads', authenticateToken, requireRoles(['bda']), async (req
       leadId: lead.id,
       customerName: lead.customerName,
       contact: lead.contact,
+      whatsapp: lead.whatsapp || '',
       college: lead.college || '',
       branch: lead.branch || '',
       year: lead.year || '',

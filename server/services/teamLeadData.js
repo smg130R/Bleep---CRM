@@ -180,6 +180,7 @@ async function distributeLeads(teamId, assignedBy) {
       leadId: l.id,
       customerName: l.customerName,
       contact: l.contact,
+      whatsapp: l.whatsapp || '',
       college: l.college,
       branch: l.branch,
       year: l.year,

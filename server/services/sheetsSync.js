@@ -49,6 +49,7 @@ async function syncBdaSheet(userId, spreadsheetId, tab) {
         assignedUserId: userId,
         customerName: lead.customerName,
         contact: lead.contact,
+        whatsapp: lead.whatsapp || '',
         college: lead.college || '',
         branch: lead.branch || '',
         year: lead.year || '',
@@ -158,7 +159,8 @@ async function runAllSyncs() {
 // Smart column mapping: detect columns by header name
 const COLUMN_ALIASES = {
   customerName: ['name', 'customer name', 'customer', 'student name', 'student', 'full name', 'candidate name', 'candidate', 'prospect name', 'prospect'],
-  contact: ['contact', 'contact number', 'phone', 'phone number', 'mobile', 'mobile number', 'whatsapp', 'whatsapp number', 'cell', 'number', 'tel', 'telephone'],
+  contact: ['contact', 'contact number', 'phone', 'phone number', 'mobile', 'mobile number', 'cell', 'number', 'tel', 'telephone'],
+  whatsapp: ['whatsapp', 'whatsapp number', 'whats app', 'whatsapp no'],
   email: ['email', 'email id', 'e mail id', 'e mail', 'email address', 'mail', 'mail id'],
   college: ['college', 'college name', 'institute', 'university', 'school', 'institution', 'academic institute'],
   branch: ['branch', 'branch department', 'stream', 'course', 'department', 'major', 'specialization', 'discipline', 'field'],
