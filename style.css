@@ -47,8 +47,8 @@
 }
 
 [data-theme="dark"] {
-  --primary-navy: #1e293b;
-  --secondary-slate: #0f172a;
+  --primary-navy: #f1f5f9;
+  --secondary-slate: #94a3b8;
   --accent-blue: #60a5fa;
   --accent-blue-light: #1e3a5f;
   --success: #34d399;
@@ -73,6 +73,27 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .sidebar {
+  background-color: #0f172a;
+}
+[data-theme="dark"] .sidebar-footer {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+[data-theme="dark"] .role-dropdown-menu {
+  background: #0f172a;
+}
+[data-theme="dark"] .toast-notification {
+  background-color: #1e293b;
+}
+[data-theme="dark"] .login-form h2,
+[data-theme="dark"] .brand-name {
+  color: #0f172a;
+}
+[data-theme="dark"] .user-role-label,
+[data-theme="dark"] .sidebar-menu-item a {
+  color: #64748b;
 }
 
 * {
