@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Sheet, Users, PhoneCall, RefreshCw, Download, AlertCircle, CheckCircle, ExternalLink, Save, Trash2, Loader, Square, CheckSquare } from 'lucide-react';
+import { AlertTriangle, Sheet, Users, PhoneCall, RefreshCw, Download, AlertCircle, CheckCircle, ExternalLink, Save, Trash2, Loader, Square, CheckSquare } from 'lucide-react';
 
 const TeamLeadWorkspace = ({ showToast }) => {
   const { user } = useAuth();
@@ -343,7 +343,7 @@ const TeamLeadWorkspace = ({ showToast }) => {
       </div>
 
       <div className="content-card" style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
             <div><strong>Total Leads:</strong> {leads.length}</div>
             <div><strong>Unassigned:</strong> {unassignedCount}</div>
@@ -352,6 +352,18 @@ const TeamLeadWorkspace = ({ showToast }) => {
             <div><strong>Dropped:</strong> {droppedCount}</div>
             <div><strong>BDAs Present:</strong> {bdas.length}</div>
           </div>
+          {unassignedCount < 150 && (
+            <div style={{
+              background: 'var(--danger-light)', border: '1px solid var(--danger)',
+              borderRadius: 'var(--radius-md)', padding: '0.5rem 1rem',
+              display: 'flex', alignItems: 'center', gap: 8,
+              color: 'var(--danger)', fontWeight: 600, fontSize: 13,
+            }}>
+              <AlertTriangle size={16} />
+              Only <strong style={{ margin: '0 3px' }}>{unassignedCount}</strong> fresh leads left
+              {unassignedCount === 0 ? ' — import more!' : ' — import soon.'}
+            </div>
+          )}
           <div style={{ display: 'flex', gap: '0.75rem' }}>
             <button
               className="btn btn-primary"

@@ -34,6 +34,7 @@ const Dashboard = ({ dateFilter }) => {
   const [lowPerf, setLowPerf] = useState([]);
   const [loading, setLoading] = useState(true);
   const [payStats, setPayStats] = useState({ total: 0, slotBookingCount: 0, totalSlotAmount: 0, totalCollected: 0, totalOutstanding: 0 });
+  const [unassignedCount, setUnassignedCount] = useState(0);
 
   const greet = () => {
     const h = new Date().getHours();
@@ -46,14 +47,16 @@ const Dashboard = ({ dateFilter }) => {
     try {
       setLoading(true);
       const today = new Date().toISOString().split('T')[0];
-      const [kpiRes, lbRes, psRes] = await Promise.all([
+      const [kpiRes, lbRes, psRes, ucRes] = await Promise.all([
         fetch(`/api/kpi/dashboard?date=${today}`),
         fetch(`/api/kpi/leaderboard?date=${today}`),
         fetch('/api/prospects/stats'),
+        fetch('/api/team-lead/unassigned-count'),
       ]);
       if (kpiRes.ok) { const d = await kpiRes.json(); setStats(d.stats); if (d.chartData) setChartData(d.chartData); }
       if (lbRes.ok) { const d = await lbRes.json(); setLowPerf((d.leaderboard || []).filter(b => b.perfScore < 40)); }
       if (psRes.ok) { setPayStats(await psRes.json()); }
+      if (ucRes.ok) { const d = await ucRes.json(); setUnassignedCount(d.count || 0); }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -98,6 +101,20 @@ const Dashboard = ({ dateFilter }) => {
           Here's your performance overview for today.
         </p>
       </div>
+
+      {/* Low Fresh Leads Warning */}
+      {!isBDA && unassignedCount < 150 && (
+        <div style={{
+          background: 'var(--danger-light)', border: '1px solid var(--danger)',
+          borderRadius: 'var(--radius-md)', padding: '1rem 1.25rem',
+          display: 'flex', alignItems: 'center', gap: 12,
+          color: 'var(--danger)', fontWeight: 600, fontSize: 14,
+        }}>
+          <AlertTriangle size={20} />
+          <span>Low fresh leads: only <strong>{unassignedCount}</strong> unassigned remaining.
+          {unassignedCount === 0 ? ' Import new leads from the master sheet ASAP!' : ' Consider importing more leads soon.'}</span>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>

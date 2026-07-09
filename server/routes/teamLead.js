@@ -260,4 +260,22 @@ router.patch('/bda-sheets/:bdaId', authenticateToken, requireRoles(['team_lead',
   }
 });
 
+// GET /api/team-lead/unassigned-count - Count fresh/unassigned leads for the team
+router.get('/unassigned-count', authenticateToken, requireRoles(['team_lead', 'admin', 'ops_head']), async (req, res) => {
+  try {
+    const teamId = req.user.teamId;
+    if (!teamId) return res.json({ count: 0 });
+    const { count, error } = await supabase
+      .from('leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('teamId', teamId)
+      .eq('status', 'unassigned');
+    if (error) throw error;
+    return res.json({ count: count || 0 });
+  } catch (error) {
+    console.error('Unassigned count error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 module.exports = router;
