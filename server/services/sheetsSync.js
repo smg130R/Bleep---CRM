@@ -53,7 +53,7 @@ async function syncBdaSheet(userId, spreadsheetId, tab) {
         college: lead.college || '',
         branch: lead.branch || '',
         year: lead.year || '',
-        status: 'Pending',
+        status: '',
         remarks: '',
         lastUpdated: today,
       });

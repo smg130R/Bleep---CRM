@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Download, Filter, RefreshCw, Clock, AlertCircle, CheckCircle, PhoneOff, Phone, XCircle, Ban, Mail, Image, Loader } from 'lucide-react';
 
 const statusColors = {
+  '': '#f1f5f9',
   NA: '#ef4444',
   NI: '#f59e0b',
   'FORM SHARED': '#8b5cf6',
@@ -18,7 +19,7 @@ const statusColors = {
 };
 
 const statusOptions = [
-  "NA", "NI", "FORM SHARED", "SCREENSHOT SHARED",
+  "", "NA", "NI", "FORM SHARED", "SCREENSHOT SHARED",
   "BUSY", "SWITCH OFF", "NOT YET REPLIED", "CALL BACK",
   "OUT OF SERVICE", "WRONG NUMBER", "RESPONDED"
 ];
@@ -99,6 +100,7 @@ const MarketingCalling = ({ showToast }) => {
   }, [tab]);
 
   const handleStatusChange = async (id, newStatus) => {
+    if (!newStatus) return;
     const source = tab === 'follow-ups' ? followUps : callingData;
     const setter = tab === 'follow-ups' ? setFollowUps : setCallingData;
     const record = source.find(r => r.id === id);
@@ -175,8 +177,8 @@ const MarketingCalling = ({ showToast }) => {
     }
   };
 
-  const filtered = tab === 'all' ? callingData : callingData.filter(r => r.status === 'Pending');
-  const pendingCount = callingData.filter(r => r.status === 'Pending').length;
+  const filtered = tab === 'all' ? callingData : callingData.filter(r => !r.status || r.status === 'Pending');
+  const pendingCount = callingData.filter(r => !r.status || r.status === 'Pending').length;
   const today = new Date().toISOString().split('T')[0];
 
   // Column resize
@@ -301,24 +303,24 @@ const MarketingCalling = ({ showToast }) => {
       case 'status':
         return (
           <td key={col} style={style}>
-            <select
-              className="table-select"
-              value={row.status}
-              onChange={(e) => handleStatusChange(row.id, e.target.value)}
-              style={{
-                padding: '0.35rem 0.5rem',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-sm)',
-                fontWeight: 600,
-                color: '#fff',
-                backgroundColor: statusColors[row.status] || '#6b7280',
-                cursor: 'pointer',
-              }}
-            >
-              {statusOptions.map(opt => (
-                <option key={opt} value={opt} style={{ color: '#000', background: '#fff' }}>{opt}</option>
-              ))}
-            </select>
+<select
+                className="table-select"
+                value={row.status === 'Pending' ? '' : row.status}
+                onChange={(e) => handleStatusChange(row.id, e.target.value)}
+                style={{
+                  padding: '0.35rem 0.5rem',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontWeight: 600,
+                  color: row.status && row.status !== 'Pending' ? '#fff' : 'var(--text-primary)',
+                  backgroundColor: statusColors[row.status] || (row.status === 'Pending' ? '#f1f5f9' : '#6b7280'),
+                  cursor: 'pointer',
+                }}
+              >
+                {statusOptions.map(opt => (
+                  <option key={opt} value={opt} style={{ color: '#000', background: '#fff' }}>{opt || '— Select —'}</option>
+                ))}
+              </select>
           </td>
         );
       case 'lastUpdate':
@@ -401,20 +403,20 @@ const MarketingCalling = ({ showToast }) => {
           <td key={col} style={style}>
             <select
               className="table-select"
-              value={row.status}
+              value={row.status === 'Pending' ? '' : row.status}
               onChange={(e) => handleStatusChange(row.id, e.target.value)}
               style={{
                 padding: '0.3rem 0.5rem',
                 fontSize: '0.75rem',
                 border: '1px solid var(--border)',
                 borderRadius: 'var(--radius-sm)',
-                color: '#fff',
+                color: row.status && row.status !== 'Pending' ? '#fff' : 'var(--text-primary)',
                 fontWeight: 600,
-                backgroundColor: statusColors[row.status] || '#6b7280',
+                backgroundColor: statusColors[row.status] || (row.status === 'Pending' ? '#f1f5f9' : '#6b7280'),
               }}
             >
               {statusOptions.map(opt => (
-                <option key={opt} value={opt} style={{ color: '#000', background: '#fff' }}>{opt}</option>
+                <option key={opt} value={opt} style={{ color: '#000', background: '#fff' }}>{opt || '— Select —'}</option>
               ))}
             </select>
           </td>

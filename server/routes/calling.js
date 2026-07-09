@@ -389,7 +389,7 @@ router.post('/fetch-leads', authenticateToken, requireRoles(['bda']), async (req
       college: lead.college || '',
       branch: lead.branch || '',
       year: lead.year || '',
-      status: 'Pending',
+      status: '',
       naCount: lead.naCount || 0,
       remarks: '',
       lastUpdated: today,
