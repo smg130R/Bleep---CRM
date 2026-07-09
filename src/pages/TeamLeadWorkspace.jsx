@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Sheet, Users, PhoneCall, RefreshCw, Download, AlertCircle, CheckCircle, ExternalLink, Save, Trash2, Loader } from 'lucide-react';
+import { Sheet, Users, PhoneCall, RefreshCw, Download, AlertCircle, CheckCircle, ExternalLink, Save, Trash2, Loader, Square, CheckSquare } from 'lucide-react';
 
 const TeamLeadWorkspace = ({ showToast }) => {
   const { user } = useAuth();
@@ -18,6 +18,38 @@ const TeamLeadWorkspace = ({ showToast }) => {
   const [selectedBda, setSelectedBda] = useState('');
   const [callingLoading, setCallingLoading] = useState(false);
   const [removingId, setRemovingId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const lastClickedId = useRef(null);
+
+  const toggleSelect = (id, event) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (event.shiftKey && lastClickedId.current !== null) {
+        const ids = callingSheets.map(e => e.id);
+        const start = ids.indexOf(lastClickedId.current);
+        const end = ids.indexOf(id);
+        if (start !== -1 && end !== -1) {
+          const [from, to] = start < end ? [start, end] : [end, start];
+          for (let i = from; i <= to; i++) next.add(ids[i]);
+        }
+      } else if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      lastClickedId.current = id;
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    if (selectedIds.size === callingSheets.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(callingSheets.map(e => e.id)));
+    }
+    lastClickedId.current = null;
+  };
 
   useEffect(() => {
     Promise.all([
@@ -57,6 +89,7 @@ const TeamLeadWorkspace = ({ showToast }) => {
       const data = await res.json();
       if (res.ok) {
         showToast(data.message);
+        setSelectedIds(new Set());
         fetchTeamCalling(selectedBda || undefined);
       } else {
         showToast(data.message || 'Failed to remove', true);
@@ -66,6 +99,25 @@ const TeamLeadWorkspace = ({ showToast }) => {
     } finally {
       setRemovingId(null);
     }
+  };
+
+  const handleBulkRemove = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Remove ${selectedIds.size} selected leads from the calling sheet? They will be reset to unassigned.`)) return;
+    setRemovingId('bulk');
+    let count = 0;
+    for (const entryId of selectedIds) {
+      try {
+        const res = await fetch(`/api/calling/${entryId}`, { method: 'DELETE' });
+        if (res.ok) count++;
+      } catch (err) {
+        console.error('Bulk remove error:', entryId, err);
+      }
+    }
+    setRemovingId(null);
+    setSelectedIds(new Set());
+    showToast(`Removed ${count} of ${selectedIds.size} entries.`);
+    fetchTeamCalling(selectedBda || undefined);
   };
 
   const fetchConfig = async () => {
@@ -552,13 +604,31 @@ const TeamLeadWorkspace = ({ showToast }) => {
                 {bdas.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
               <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
-                {callingSheets.length} entries
+                {selectedIds.size > 0 ? `${selectedIds.size} selected` : `${callingSheets.length} entries`}
               </span>
+              {selectedIds.size > 0 && (
+                <button
+                  className="btn btn-danger"
+                  onClick={handleBulkRemove}
+                  disabled={removingId === 'bulk'}
+                  style={{ whiteSpace: 'nowrap' }}
+                >
+                  {removingId === 'bulk' ? <Loader size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                  {' Remove Selected (' + selectedIds.size + ')'}
+                </button>
+              )}
             </div>
             <div className="table-responsive">
               <table className="data-table">
                 <thead>
                   <tr>
+                    <th style={{ width: 40 }}>
+                      <span onClick={selectAll} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        {selectedIds.size === callingSheets.length && callingSheets.length > 0
+                          ? <CheckSquare size={16} color="#2563EB" />
+                          : <Square size={16} color="#9CA3AF" />}
+                      </span>
+                    </th>
                     <th>BDA</th>
                     <th>Customer</th>
                     <th>Contact</th>
@@ -574,20 +644,30 @@ const TeamLeadWorkspace = ({ showToast }) => {
                 <tbody>
                   {callingLoading ? (
                     <tr>
-                      <td colSpan={10} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                      <td colSpan={11} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                         <Loader size={18} className="animate-spin" style={{ display: 'inline', marginRight: 8 }} />
                         Loading...
                       </td>
                     </tr>
                   ) : callingSheets.length === 0 ? (
                     <tr>
-                      <td colSpan={10} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                      <td colSpan={11} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                         No calling sheet entries found for your team's BDAs.
                       </td>
                     </tr>
                   ) : (
                     callingSheets.map(entry => (
-                      <tr key={entry.id}>
+                      <tr key={entry.id} style={{ background: selectedIds.has(entry.id) ? '#EFF6FF' : undefined }}>
+                        <td>
+                          <span
+                            onClick={e => toggleSelect(entry.id, e)}
+                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                          >
+                            {selectedIds.has(entry.id)
+                              ? <CheckSquare size={16} color="#2563EB" />
+                              : <Square size={16} color="#9CA3AF" />}
+                          </span>
+                        </td>
                         <td style={{ fontWeight: 600 }}>{entry.bdaName}</td>
                         <td>{entry.customerName}</td>
                         <td><a href={`tel:${entry.contact}`} style={{ color: 'var(--accent-blue)' }}>{entry.contact}</a></td>
@@ -600,12 +680,11 @@ const TeamLeadWorkspace = ({ showToast }) => {
                         <td>
                           <button
                             className="btn btn-danger"
-                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-                            onClick={() => handleRemoveCallingEntry(entry.id)}
+                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 2 }}
+                            onClick={e => handleRemoveCallingEntry(entry.id)}
                             disabled={removingId === entry.id}
                           >
                             {removingId === entry.id ? <Loader size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                            {' Remove'}
                           </button>
                         </td>
                       </tr>

@@ -70,7 +70,7 @@ router.get('/team', authenticateToken, requireRoles(['team_lead', 'admin']), asy
   }
 });
 
-// DELETE /api/calling/:id - Team lead removes a calling sheet entry (resets lead to unassigned)
+// DELETE /api/calling/:id - Team lead removes a calling sheet entry (resets lead to unassigned, updates BDA sheet)
 router.delete('/:id', authenticateToken, requireRoles(['team_lead', 'admin']), async (req, res) => {
   const { id } = req.params;
   try {
@@ -83,6 +83,8 @@ router.delete('/:id', authenticateToken, requireRoles(['team_lead', 'admin']), a
     if (fetchErr || !row) {
       return res.status(404).json({ message: 'Calling sheet entry not found.' });
     }
+
+    const bdaId = row.assignedUserId;
 
     const { error: deleteErr } = await supabase
       .from('calling_sheet')
@@ -97,6 +99,22 @@ router.delete('/:id', authenticateToken, requireRoles(['team_lead', 'admin']), a
         .update({ status: 'unassigned', currentAssigneeId: null, updatedAt: new Date().toISOString().split('T')[0] })
         .eq('id', row.leadId);
       if (leadErr) console.error('Lead reset error (non-fatal):', leadErr.message);
+    }
+
+    // Refresh BDA's assigned sheet to reflect the removal
+    try {
+      const { data: bdaUser } = await supabase
+        .from('users')
+        .select('"assignedSheetUrl", "assignedSheetTab"')
+        .eq('id', bdaId)
+        .single();
+      if (bdaUser?.assignedSheetUrl) {
+        const { pushBdaLeadsToSheet, extractSheetId } = require('../services/sheetsSync');
+        const sid = extractSheetId(bdaUser.assignedSheetUrl);
+        await pushBdaLeadsToSheet(bdaId, sid, bdaUser.assignedSheetTab || 'Sheet1');
+      }
+    } catch (sheetErr) {
+      console.error('BDA sheet update error (non-fatal):', sheetErr.message);
     }
 
     return res.json({ message: 'Calling sheet entry removed and lead reset to unassigned.' });
