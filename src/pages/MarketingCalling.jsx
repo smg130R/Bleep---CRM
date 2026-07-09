@@ -254,6 +254,8 @@ const MarketingCalling = ({ showToast }) => {
           position: 'relative',
           width: width || undefined,
           minWidth: width || 80,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
           background: 'var(--bg-card)',
           ...(isDragging ? { opacity: 0.4 } : {}),
           ...(isDrop ? { borderLeft: '2px solid var(--primary)', background: 'var(--primary-light)' } : {}),
@@ -270,12 +272,21 @@ const MarketingCalling = ({ showToast }) => {
 
   const renderCallingCell = (col, row) => {
     const width = colWidths[col];
-    const style = { width: width || undefined, minWidth: width || 80 };
+    const style = { width: width || undefined, minWidth: width || 80, overflow: 'hidden', textOverflow: 'ellipsis' };
     switch (col) {
       case 'name':
         return <td key={col} style={{ ...style, fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>{row.customerName}</td>;
       case 'contact':
-        return <td key={col} style={{ ...style, fontWeight: 500, whiteSpace: 'nowrap' }}>{row.contact}</td>;
+        return (
+          <td
+            key={col}
+            style={{ ...style, fontWeight: 500, whiteSpace: 'nowrap', cursor: 'pointer' }}
+            onClick={() => navigator.clipboard.writeText(row.contact)}
+            title="Click to copy"
+          >
+            {row.contact}
+          </td>
+        );
       case 'college':
         return <td key={col} style={{ ...style, fontSize: '0.85rem' }}>{row.college}</td>;
       case 'branch':
@@ -327,7 +338,7 @@ const MarketingCalling = ({ showToast }) => {
 
   const renderFollowUpCell = (col, row) => {
     const width = colWidths[col];
-    const style = { width: width || undefined, minWidth: width || 80 };
+    const style = { width: width || undefined, minWidth: width || 80, overflow: 'hidden', textOverflow: 'ellipsis' };
     const isMissed = row.followUpDate < today;
     const isToday = row.followUpDate === today;
     switch (col) {
@@ -350,7 +361,16 @@ const MarketingCalling = ({ showToast }) => {
       case 'name':
         return <td key={col} style={{ ...style, fontWeight: 600, whiteSpace: 'nowrap' }}>{row.customerName}</td>;
       case 'contact':
-        return <td key={col} style={{ ...style, whiteSpace: 'nowrap' }}>{row.contact}</td>;
+        return (
+          <td
+            key={col}
+            style={{ ...style, whiteSpace: 'nowrap', cursor: 'pointer' }}
+            onClick={() => navigator.clipboard.writeText(row.contact)}
+            title="Click to copy"
+          >
+            {row.contact}
+          </td>
+        );
       case 'college':
         return <td key={col} style={{ ...style, fontSize: '0.85rem' }}>{row.college}</td>;
       case 'branch':
@@ -444,7 +464,7 @@ const MarketingCalling = ({ showToast }) => {
   const renderTable = () => (
     <div className="content-card" style={{ padding: '0', overflow: 'hidden' }}>
       <div className="table-responsive">
-        <table className="data-table data-table-bordered">
+        <table className="data-table data-table-bordered" style={{ tableLayout: 'fixed' }}>
           <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
             <tr>{columnOrder.map(col => renderHeader(col, columnOrder, false))}</tr>
           </thead>
@@ -477,7 +497,7 @@ const MarketingCalling = ({ showToast }) => {
   const renderFollowUps = () => (
     <div className="content-card" style={{ padding: '0', overflow: 'hidden' }}>
       <div className="table-responsive">
-        <table className="data-table data-table-bordered">
+        <table className="data-table data-table-bordered" style={{ tableLayout: 'fixed' }}>
           <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
             <tr>{fuColumnOrder.map(col => renderHeader(col, fuColumnOrder, true))}</tr>
           </thead>
