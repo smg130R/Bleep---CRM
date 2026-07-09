@@ -2,28 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { Download, Filter, RefreshCw, Clock, AlertCircle, CheckCircle, PhoneOff, Phone, XCircle, Ban, Mail, Image, Loader } from 'lucide-react';
 
 const statusColors = {
-  Pending: '#6b7280',
-  Connected: '#10b981',
-  Interested: '#3b82f6',
   NA: '#ef4444',
   NI: '#f59e0b',
   'FORM SHARED': '#8b5cf6',
   'SCREENSHOT SHARED': '#06b6d4',
   BUSY: '#f97316',
   'SWITCH OFF': '#6b7280',
+  'NOT YET REPLIED': '#d97706',
+  'CALL BACK': '#eab308',
   'OUT OF SERVICE': '#6b7280',
-  'Follow-up': '#eab308',
-  'Deal Closed': '#059669',
+  'WRONG NUMBER': '#dc2626',
+  RESPONDED: '#10b981',
   Completed: '#10b981',
   'No Answer': '#94a3b8',
 };
 
 const statusOptions = [
-  "Pending", "NA", "NI", "FORM SHARED", "SCREENSHOT SHARED",
-  "BUSY", "SWITCH OFF", "OUT OF SERVICE", "Follow-up"
+  "NA", "NI", "FORM SHARED", "SCREENSHOT SHARED",
+  "BUSY", "SWITCH OFF", "NOT YET REPLIED", "CALL BACK",
+  "OUT OF SERVICE", "WRONG NUMBER", "RESPONDED"
 ];
 
-const followUpActions = ['Completed', 'No Answer', 'NA', 'NI', 'FORM SHARED', 'SCREENSHOT SHARED'];
+const followUpActions = ['Completed', 'No Answer', 'NA', 'NI', 'FORM SHARED', 'SCREENSHOT SHARED', 'NOT YET REPLIED', 'CALL BACK', 'WRONG NUMBER', 'RESPONDED'];
 
 const callingColumns = [
   { key: 'name', label: 'Customer Name' },
