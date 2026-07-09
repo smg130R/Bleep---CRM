@@ -66,7 +66,7 @@ const ProfileModal = ({ isOpen, onClose, showToast }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 2000 }}>
+    <div className={`modal-overlay ${isOpen ? 'show' : ''}`} onClick={onClose} style={{ zIndex: 2000 }}>
       <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 520, padding: 0, overflow: 'hidden' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)' }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Profile Settings</h2>
