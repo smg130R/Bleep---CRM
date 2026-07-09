@@ -12,19 +12,22 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineEleme
 const COLORS = { primary: '#3b82f6', success: '#10b981', warning: '#f59e0b', danger: '#ef4444', purple: '#8b5cf6', coral: '#f97316', grid: '#e2e8f0' };
 const TEAM_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#f97316', '#06b6d4', '#ec4899'];
 
-const Reports = () => {
+const rangeMap = { 'Today': 'today', '7 Days': 'weekly', '30 Days': 'monthly' };
+
+const Reports = ({ dateFilter = '7 Days', showToast }) => {
   const [teams, setTeams] = useState([]);
   const [members, setMembers] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [loading, setLoading] = useState(true);
   const [memberLoading, setMemberLoading] = useState(false);
 
-  useEffect(() => { fetchTeams(); }, []);
+  useEffect(() => { fetchTeams(); }, [dateFilter]);
 
   const fetchTeams = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/kpi/teams-breakdown', { credentials: 'include' });
+      const range = rangeMap[dateFilter] || 'today';
+      const res = await fetch(`/api/kpi/teams-breakdown?range=${range}`, { credentials: 'include' });
       if (res.ok) setTeams((await res.json()).teams || []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -33,11 +36,12 @@ const Reports = () => {
   const fetchMembers = useCallback(async (teamId) => {
     setMemberLoading(true);
     try {
-      const res = await fetch(`/api/kpi/team-members/${teamId}`, { credentials: 'include' });
+      const range = rangeMap[dateFilter] || 'today';
+      const res = await fetch(`/api/kpi/team-members/${teamId}?range=${range}`, { credentials: 'include' });
       if (res.ok) setMembers((await res.json()).members || []);
     } catch (e) { console.error(e); }
     finally { setMemberLoading(false); }
-  }, []);
+  }, [dateFilter]);
 
   const handleDrill = (idx) => {
     if (!teams[idx]) return;

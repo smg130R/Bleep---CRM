@@ -315,9 +315,33 @@ router.get('/board-all', authenticateToken, async (req, res) => {
   }
 });
 
+function getDateRange(range) {
+  const today = new Date().toISOString().split('T')[0];
+  if (range === 'weekly') {
+    const dates = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      dates.push(d.toISOString().split('T')[0]);
+    }
+    return { dates };
+  }
+  if (range === 'monthly') {
+    const dates = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      dates.push(d.toISOString().split('T')[0]);
+    }
+    return { dates };
+  }
+  return { dates: [today] };
+}
+
 // GET /api/kpi/teams-breakdown - Per-team aggregated stats for chart
 router.get('/teams-breakdown', authenticateToken, async (req, res) => {
-  const dateFilter = req.query.date || new Date().toISOString().split('T')[0];
+  const range = req.query.range || 'today';
+  const { dates } = getDateRange(range);
   try {
     const { data: teams } = await supabase.from('teams').select('id, name');
     if (!teams) return res.json({ teams: [] });
@@ -331,8 +355,8 @@ router.get('/teams-breakdown', authenticateToken, async (req, res) => {
       const { data: rows } = await supabase
         .from('kpi_records')
         .select('mCalls, eCalls, mConn, eConn, deals, perfScore')
-        .eq('date', dateFilter)
-        .in('userId', ids);
+        .in('userId', ids)
+        .in('date', dates);
 
       let calls = 0, connects = 0, deals = 0, score = 0;
       (rows || []).forEach(r => {
@@ -353,7 +377,6 @@ router.get('/teams-breakdown', authenticateToken, async (req, res) => {
       });
     }
 
-    // Also add a "by member" section for current team if TL
     let breakdownBy;
     if (req.user.role === 'team_lead' && req.user.teamId) {
       const { data: bdas } = await supabase.from('users').select('id, name').eq('role', 'bda').eq('teamId', req.user.teamId);
@@ -361,10 +384,18 @@ router.get('/teams-breakdown', authenticateToken, async (req, res) => {
       const { data: rows } = await supabase
         .from('kpi_records')
         .select('userId, mCalls, eCalls, mConn, eConn, deals, perfScore')
-        .eq('date', dateFilter)
-        .in('userId', ids.length ? ids : [0]);
+        .in('userId', ids.length ? ids : [0])
+        .in('date', dates);
       const kpiMap = {};
-      (rows || []).forEach(r => { kpiMap[r.userId] = r; });
+      (rows || []).forEach(r => {
+        if (!kpiMap[r.userId]) kpiMap[r.userId] = { mCalls:0, eCalls:0, mConn:0, eConn:0, deals:0, perfScore:0 };
+        kpiMap[r.userId].mCalls += r.mCalls || 0;
+        kpiMap[r.userId].eCalls += r.eCalls || 0;
+        kpiMap[r.userId].mConn += r.mConn || 0;
+        kpiMap[r.userId].eConn += r.eConn || 0;
+        kpiMap[r.userId].deals += r.deals || 0;
+        kpiMap[r.userId].perfScore = Math.max(kpiMap[r.userId].perfScore, r.perfScore || 0);
+      });
       breakdownBy = (bdas || []).map(b => {
         const k = kpiMap[b.id] || {};
         return { id: b.id, name: b.name, calls: (k.mCalls||0)+(k.eCalls||0), connects: (k.mConn||0)+(k.eConn||0), deals: k.deals||0, perfScore: k.perfScore||0 };
@@ -381,7 +412,8 @@ router.get('/teams-breakdown', authenticateToken, async (req, res) => {
 // GET /api/kpi/team-members/:teamId - Per-BDA stats within a team
 router.get('/team-members/:teamId', authenticateToken, async (req, res) => {
   const { teamId } = req.params;
-  const dateFilter = req.query.date || new Date().toISOString().split('T')[0];
+  const range = req.query.range || 'today';
+  const { dates } = getDateRange(range);
   try {
     const { data: bdas } = await supabase.from('users').select('id, name').eq('role', 'bda').eq('teamId', teamId);
     if (!bdas || bdas.length === 0) return res.json({ members: [] });
@@ -390,20 +422,33 @@ router.get('/team-members/:teamId', authenticateToken, async (req, res) => {
     const { data: rows } = await supabase
       .from('kpi_records')
       .select('userId, mCalls, mConn, mSS, mPros, eCalls, eConn, eSS, ePros, deals, followups, perfScore')
-      .eq('date', dateFilter)
-      .in('userId', ids);
+      .in('userId', ids)
+      .in('date', dates);
 
     const kpiMap = {};
-    (rows || []).forEach(r => { kpiMap[r.userId] = r; });
+    (rows || []).forEach(r => {
+      if (!kpiMap[r.userId]) kpiMap[r.userId] = { mCalls:0, mConn:0, mSS:0, mPros:0, eCalls:0, eConn:0, eSS:0, ePros:0, deals:0, followups:0, perfScore:0 };
+      kpiMap[r.userId].mCalls += r.mCalls ?? 0;
+      kpiMap[r.userId].mConn += r.mConn ?? 0;
+      kpiMap[r.userId].mSS += r.mSS ?? 0;
+      kpiMap[r.userId].mPros += r.mPros ?? 0;
+      kpiMap[r.userId].eCalls += r.eCalls ?? 0;
+      kpiMap[r.userId].eConn += r.eConn ?? 0;
+      kpiMap[r.userId].eSS += r.eSS ?? 0;
+      kpiMap[r.userId].ePros += r.ePros ?? 0;
+      kpiMap[r.userId].deals += r.deals ?? 0;
+      kpiMap[r.userId].followups += r.followups ?? 0;
+      kpiMap[r.userId].perfScore = Math.max(kpiMap[r.userId].perfScore, r.perfScore ?? 0);
+    });
 
     const members = bdas.map(b => {
       const k = kpiMap[b.id] || {};
       return {
         id: b.id,
         name: b.name,
-        mCalls: k.mCalls ?? 0, mConn: k.mConn ?? 0, mSS: k.mSS ?? 0, mPros: k.mPros ?? 0,
-        eCalls: k.eCalls ?? 0, eConn: k.eConn ?? 0, eSS: k.eSS ?? 0, ePros: k.ePros ?? 0,
-        deals: k.deals ?? 0, followups: k.followups ?? 0, perfScore: k.perfScore ?? 0,
+        mCalls: k.mCalls, mConn: k.mConn, mSS: k.mSS, mPros: k.mPros,
+        eCalls: k.eCalls, eConn: k.eConn, eSS: k.eSS, ePros: k.ePros,
+        deals: k.deals, followups: k.followups, perfScore: k.perfScore,
       };
     });
 
