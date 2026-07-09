@@ -179,7 +179,7 @@ router.patch('/:id', authenticateToken, requireRoles(['bda']), async (req, res) 
       .update(updateFields)
       .eq('id', id);
 
-    // Sync status back to team lead data if this lead came from master sheet
+    // Sync status and remarks back to leads table
     if (req.user.teamId) {
       try {
         const teamLeadData = require('../services/teamLeadData');
@@ -188,23 +188,30 @@ router.patch('/:id', authenticateToken, requireRoles(['bda']), async (req, res) 
           l.customerName === cleanCustomer.customerName && l.contact === cleanCustomer.contact
         );
         if (match) {
-          const newStatus = status.toLowerCase().replace(/\s+/g, '_');
-          const isValidStatus = ['na', 'ni', 'form_shared', 'screenshot_shared', 'busy', 'switch_off', 'out_of_service', 'pending'];
-          if (newStatus === 'na') {
-            await teamLeadData.updateLead(req.user.teamId, match.id, { status: 'na' });
-            await teamLeadData.addAssignment(req.user.teamId, {
-              leadId: match.id, assignedTo: req.user.id, assignedBy: req.user.id,
-              status: 'na', remarks: remarks || ''
-            });
-          } else if (isValidStatus.includes(newStatus)) {
-            await teamLeadData.updateLead(req.user.teamId, match.id, { status: newStatus });
-            if (['form_shared', 'screenshot_shared'].includes(newStatus)) {
-              await teamLeadData.updateLead(req.user.teamId, match.id, { assignedInMaster: true });
+          const mappedStatus = status.toLowerCase().replace(/\s+/g, '_');
+          const leadUpdates = { status: mappedStatus, updatedAt: todayStr };
+          if (remarks) leadUpdates.remarks = remarks;
+          await teamLeadData.updateLead(req.user.teamId, match.id, leadUpdates);
+          await teamLeadData.addAssignment(req.user.teamId, {
+            leadId: match.id, assignedTo: req.user.id, assignedBy: req.user.id,
+            status: mappedStatus, remarks: remarks || ''
+          });
+          if (['form_shared', 'screenshot_shared'].includes(mappedStatus)) {
+            await teamLeadData.updateLead(req.user.teamId, match.id, { assignedInMaster: true });
+          }
+
+          // Push status back to master Google Sheet
+          try {
+            const masterSheetUrl = await teamLeadData.getMasterSheetUrl(req.user.teamId);
+            if (masterSheetUrl) {
+              const { extractSheetId, updateMasterSheetStatus } = require('../services/sheetsSync');
+              const sheetId = extractSheetId(masterSheetUrl);
+              if (sheetId && match.sheetRow) {
+                await updateMasterSheetStatus(sheetId, 'Sheet1', match.sheetRow, status, remarks || '');
+              }
             }
-            await teamLeadData.addAssignment(req.user.teamId, {
-              leadId: match.id, assignedTo: req.user.id, assignedBy: req.user.id,
-              status: newStatus, remarks: remarks || ''
-            });
+          } catch (sheetErr) {
+            console.error('Master sheet update error (non-fatal):', sheetErr.message);
           }
         }
       } catch (syncErr) {

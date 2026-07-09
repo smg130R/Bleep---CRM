@@ -41,6 +41,7 @@ async function addLeads(teamId, newLeads) {
         id: match.id,
         customerName: lead.customerName,
         contact: lead.contact,
+        whatsapp: lead.whatsapp || '',
         college: lead.college || '',
         branch: lead.branch || '',
         year: lead.year || '',
@@ -50,6 +51,7 @@ async function addLeads(teamId, newLeads) {
         teamId,
         customerName: lead.customerName,
         contact: lead.contact,
+        whatsapp: lead.whatsapp || '',
         college: lead.college || '',
         branch: lead.branch || '',
         year: lead.year || '',
@@ -73,6 +75,7 @@ async function addLeads(teamId, newLeads) {
     const { error } = await supabase.from('leads').update({
       customerName: upd.customerName,
       contact: upd.contact,
+      whatsapp: upd.whatsapp || '',
       college: upd.college,
       branch: upd.branch,
       year: upd.year,

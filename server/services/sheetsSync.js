@@ -235,6 +235,7 @@ function parseRowsWithHeaders(rows) {
       sheetRow: i + 1,  // 1-based sheet row number (row 1 = header)
       customerName,
       contact,
+      whatsapp: map.whatsapp !== undefined ? (row[map.whatsapp] || '').trim() : '',
       email: map.email !== undefined ? (row[map.email] || '').trim() : '',
       college: map.college !== undefined ? (row[map.college] || '').trim() : '',
       branch: map.branch !== undefined ? (row[map.branch] || '').trim() : '',
@@ -459,4 +460,59 @@ async function updateMasterSheetAssignments(spreadsheetId, tab, assignments) {
   }
 }
 
-module.exports = { startCronScheduler, runAllSyncs, syncBdaSheet, syncBdaProspects, pushBdaLeadsToSheet, markBdaSheetRowDeleted, extractSheetId, importLeadsFromMasterSheet, parseRowsWithHeaders, updateMasterSheetAssignments };
+// Update a single row in the master sheet with new status and remarks
+async function updateMasterSheetStatus(spreadsheetId, tab, sheetRow, newStatus, remarks) {
+  if (!sheetRow || !spreadsheetId) return;
+  const sheets = await getSheetsClient().catch(() => null);
+  if (!sheets) return;
+
+  try {
+    const range = `${tab || 'Sheet1'}!1:1`;
+    const headerResp = await sheets.spreadsheets.values.get({ spreadsheetId, range });
+    const headerRow = headerResp.data.values?.[0] || [];
+
+    const statusAliases = ['status', 'stage', 'result', 'call status', 'lead status'];
+    const remarksAliases = ['remarks', 'remark', 'notes', 'note', 'comment', 'feedback'];
+
+    let statusCol = -1;
+    let remarksCol = -1;
+    for (let c = 0; c < headerRow.length; c++) {
+      const h = (headerRow[c] || '').toLowerCase().trim();
+      if (statusCol === -1 && statusAliases.some(a => h.includes(a))) statusCol = c;
+      if (remarksCol === -1 && remarksAliases.some(a => h.includes(a))) remarksCol = c;
+    }
+
+    const requests = [];
+    const colToLetter = (col) => {
+      let letter = '';
+      let n = col;
+      while (n >= 0) { letter = String.fromCharCode(65 + (n % 26)) + letter; n = Math.floor(n / 26) - 1; }
+      return letter;
+    };
+
+    if (statusCol !== -1) {
+      requests.push({
+        range: `${tab || 'Sheet1'}!${colToLetter(statusCol)}${sheetRow}`,
+        values: [[newStatus]],
+      });
+    }
+    if (remarksCol !== -1 && remarks) {
+      requests.push({
+        range: `${tab || 'Sheet1'}!${colToLetter(remarksCol)}${sheetRow}`,
+        values: [[remarks]],
+      });
+    }
+
+    if (requests.length > 0) {
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId,
+        requestBody: { valueInputOption: 'RAW', data: requests },
+      });
+      console.log(`Updated master sheet row ${sheetRow}: status=${newStatus}`);
+    }
+  } catch (error) {
+    console.error('Error updating master sheet status:', error.message);
+  }
+}
+
+module.exports = { startCronScheduler, runAllSyncs, syncBdaSheet, syncBdaProspects, pushBdaLeadsToSheet, markBdaSheetRowDeleted, extractSheetId, importLeadsFromMasterSheet, parseRowsWithHeaders, updateMasterSheetAssignments, updateMasterSheetStatus };
