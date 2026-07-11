@@ -21,7 +21,7 @@ import TeamLeadWorkspace from './pages/TeamLeadWorkspace';
 const MainApp = () => {
   const { user, loading } = useAuth();
   const [activePage, setActivePage] = useState('dashboard');
-  const [dateFilter, setDateFilter] = useState('7 Days');
+  const [dateFilter, setDateFilter] = useState('Today');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isComplaintModalOpen, setIsComplaintModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);

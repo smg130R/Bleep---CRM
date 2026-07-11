@@ -21,7 +21,7 @@ const Reports = ({ dateFilter = '7 Days', showToast }) => {
   const [loading, setLoading] = useState(true);
   const [memberLoading, setMemberLoading] = useState(false);
 
-  useEffect(() => { fetchTeams(); }, [dateFilter]);
+  useEffect(() => { fetchTeams(); const i = setInterval(fetchTeams, 15000); return () => clearInterval(i); }, [dateFilter]);
 
   const fetchTeams = async () => {
     setLoading(true);

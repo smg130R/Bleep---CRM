@@ -236,7 +236,7 @@ router.patch('/:id', authenticateToken, requireRoles(['bda']), async (req, res) 
     const connectStatuses = ['Connected', 'Interested', 'NI', 'FORM SHARED', 'SCREENSHOT SHARED', 'Deal Closed'];
     (allRecords || []).forEach(rec => {
       const s = rec.status;
-      if (s === 'Removed' || s === 'Pending' || s === 'unassigned') return;
+      if (s === 'Removed' || s === 'Pending' || s === 'unassigned' || !s) return;
       callsCount++;
       if (connectStatuses.includes(s)) connectsCount++;
       if (s === 'Interested') prospectsCount++;
