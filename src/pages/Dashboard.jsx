@@ -46,9 +46,12 @@ const Dashboard = ({ dateFilter }) => {
   const fetchData = async () => {
     try {
       setLoading(true);
+      const rangeMap = { 'Today': 'today', '7 Days': 'weekly', '30 Days': 'monthly' };
+      const range = rangeMap[dateFilter] || 'today';
       const today = new Date().toISOString().split('T')[0];
+      const qs = range === 'today' ? `date=${today}` : `range=${range}`;
       const [kpiRes, lbRes, psRes, ucRes] = await Promise.all([
-        fetch(`/api/kpi/dashboard?date=${today}`),
+        fetch(`/api/kpi/dashboard?${qs}`),
         fetch(`/api/kpi/leaderboard?date=${today}`),
         fetch('/api/prospects/stats'),
         fetch('/api/team-lead/unassigned-count'),

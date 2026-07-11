@@ -5,18 +5,24 @@ const { authenticateToken, requireRoles } = require('../middleware/auth');
 
 // GET /api/kpi/dashboard - General summary stats
 router.get('/dashboard', authenticateToken, async (req, res) => {
+  const range = req.query.range; // 'weekly' or 'monthly' or undefined
   const dateFilter = req.query.date || new Date().toISOString().split('T')[0];
+  let dates;
+  if (range === 'weekly' || range === 'monthly') {
+    dates = getDateRange(range).dates;
+  } else {
+    dates = [dateFilter];
+  }
 
   try {
     let stats = { calls: 0, connects: 0, screenshots: 0, prospects: 0, deals: 0, score: 0, sCalls: 0 };
     let chartData = [];
 
     if (req.user.role === 'admin' || req.user.role === 'ops_head') {
-      // Company-wide summary for the date
       const { data: rows, error } = await supabase
         .from('kpi_records')
         .select('mCalls, mConn, mSS, mPros, eCalls, eConn, eSS, ePros, deals, perfScore')
-        .eq('date', dateFilter);
+        .in('date', dates);
 
       if (error) throw error;
 
@@ -33,12 +39,11 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
         stats.score = parseFloat((totalScore / rows.length).toFixed(2));
       }
 
-      // Chart: last 7 dates aggregated
       const { data: chart } = await supabase
         .from('kpi_records')
         .select('date, mCalls, eCalls, mConn, eConn, deals')
         .order('date', { ascending: false })
-        .limit(56); // ~8 BDAs × 7 days
+        .limit(56);
 
       if (chart) {
         const dateMap = {};
@@ -54,7 +59,6 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
       }
 
     } else if (req.user.role === 'team_lead') {
-      // Get BDA ids in this team
       const { data: bdas } = await supabase
         .from('users')
         .select('id')
@@ -66,7 +70,7 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
       const { data: rows, error } = await supabase
         .from('kpi_records')
         .select('mCalls, mConn, mSS, mPros, eCalls, eConn, eSS, ePros, deals, perfScore')
-        .eq('date', dateFilter)
+        .in('date', dates)
         .in('userId', bdaIds.length ? bdaIds : [0]);
 
       if (error) throw error;
@@ -85,7 +89,6 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
         stats.score = parseFloat((totalScore / rows.length).toFixed(2));
       }
 
-      // Chart
       const { data: chart } = await supabase
         .from('kpi_records')
         .select('date, mCalls, eCalls, mConn, eConn, deals')
@@ -107,26 +110,26 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
       }
 
     } else if (req.user.role === 'bda') {
-      const { data: row, error } = await supabase
+      const { data: rows, error } = await supabase
         .from('kpi_records')
         .select('mCalls, mConn, mSS, mPros, eCalls, eConn, eSS, ePros, deals, perfScore')
         .eq('userId', req.user.id)
-        .eq('date', dateFilter)
-        .single();
+        .in('date', dates);
 
-      if (!error && row) {
-        stats = {
-          calls: row.mCalls + row.eCalls,
-          connects: row.mConn + row.eConn,
-          screenshots: row.mSS,
-          prospects: row.mPros + row.ePros,
-          deals: row.deals,
-          score: row.perfScore,
-          sCalls: row.eSS || 0
-        };
+      if (!error && rows && rows.length > 0) {
+        let totalScore = 0;
+        rows.forEach(r => {
+          stats.calls += (r.mCalls || 0) + (r.eCalls || 0);
+          stats.connects += (r.mConn || 0) + (r.eConn || 0);
+          stats.screenshots += (r.mSS || 0);
+          stats.prospects += (r.mPros || 0) + (r.ePros || 0);
+          stats.deals += (r.deals || 0);
+          stats.sCalls += (r.eSS || 0);
+          totalScore += (r.perfScore || 0);
+        });
+        stats.score = parseFloat((totalScore / rows.length).toFixed(2));
       }
 
-      // Chart
       const { data: chart } = await supabase
         .from('kpi_records')
         .select('date, mCalls, eCalls, mConn, eConn, deals')
