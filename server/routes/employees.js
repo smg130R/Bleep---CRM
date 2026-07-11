@@ -33,24 +33,9 @@ router.get('/', authenticateToken, requireRoles(['admin', 'hr', 'ops_head', 'tea
   }
 });
 
-// GET /api/employees/next-code - Suggest next employee code
+// GET /api/employees/next-code - No longer auto-generates (manual entry)
 router.get('/next-code', authenticateToken, async (req, res) => {
-  try {
-    const prefix = req.query.prefix || 'AD';
-    const { data: codes } = await supabase
-      .from('users')
-      .select('employeeCode')
-      .not('employeeCode', 'is', null)
-      .order('employeeCode', { ascending: false })
-      .limit(1);
-    const lastCode = codes?.[0]?.employeeCode || '';
-    const lastNum = parseInt(lastCode.replace(/^.*?(\d+)$/, '$1'), 10) || 0;
-    const nextCode = prefix + '-' + String(lastNum + 1).padStart(3, '0');
-    return res.json({ nextCode });
-  } catch (error) {
-    // If employeeCode column doesn't exist, return default
-    return res.json({ nextCode: 'AD-001' });
-  }
+  return res.json({ nextCode: '' });
 });
 
 // GET /api/employees/teams - List all teams and their leads
@@ -295,29 +280,14 @@ router.post('/', authenticateToken, requireRoles(['admin', 'hr', 'ops_head', 'te
 
     const newUserId = userRow.id;
 
-    // Assign employeeCode (or auto-generate if not provided)
-    let code = employeeCode;
-    if (!code) {
-      const { data: codes, error: codeErr } = await supabase
+    // Set employeeCode if provided (manual entry)
+    if (employeeCode) {
+      const { error: updateErr } = await supabase
         .from('users')
-        .select('employeeCode')
-        .not('employeeCode', 'is', null)
-        .order('employeeCode', { ascending: false })
-        .limit(1);
-      if (codeErr) {
-        console.error('Fetch max employeeCode error:', codeErr.message);
-        code = 'AD-001';
-      } else {
-        const last = codes?.[0]?.employeeCode || '';
-        const n = parseInt(last.replace(/^.*?(\d+)$/, '$1'), 10) || 0;
-        code = 'AD-' + String(n + 1).padStart(3, '0');
-      }
+        .update({ employeeCode })
+        .eq('id', newUserId);
+      if (updateErr) console.error('Assign employeeCode error:', updateErr.message);
     }
-    const { error: updateErr } = await supabase
-      .from('users')
-      .update({ employeeCode: code })
-      .eq('id', newUserId);
-    if (updateErr) console.error('Assign employeeCode error:', updateErr.message);
 
     // If creating a team lead with a team name, create the team record
     if (role === 'team_lead' && req.body.teamName && newUserId) {

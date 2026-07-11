@@ -115,10 +115,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onSave, currentRole }) => {
         .then(r => r.ok ? r.json() : { teams: [] })
         .then(d => setTeams(d.teams || []))
         .catch(() => setTeams([]));
-      fetch('/api/employees/next-code')
-        .then(r => r.ok ? r.json() : { nextCode: '' })
-        .then(d => setEmployeeCode(d.nextCode || ''))
-        .catch(() => {});
+
     }
   }, [isOpen]);
 
@@ -285,13 +282,16 @@ const AddEmployeeModal = ({ isOpen, onClose, onSave, currentRole }) => {
 
               {/* Employee ID */}
               <div>
-                <label style={labelStyles}>Employee ID</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ ...inputStyles, display: 'flex', alignItems: 'center', background: '#F9FAFB', cursor: 'default' }}>
-                    <span style={{ fontSize: 15, color: '#111827', fontWeight: 600 }}>{employeeCode || '—'}</span>
-                  </div>
-                  <span style={{ fontSize: 13, color: '#9CA3AF', fontWeight: 500 }}>Automatically generated</span>
-                </div>
+                <label htmlFor="emp-code" style={labelStyles}>Employee ID</label>
+                <input
+                  id="emp-code"
+                  type="text"
+                  placeholder="e.g. EMP-001"
+                  value={employeeCode}
+                  onChange={(e) => setEmployeeCode(e.target.value)}
+                  className="add-emp-input"
+                  style={inputStyles}
+                />
               </div>
             </div>
           </div>
