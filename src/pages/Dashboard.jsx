@@ -103,7 +103,7 @@ const Dashboard = ({ dateFilter }) => {
       </div>
 
       {/* Low Fresh Leads Warning */}
-      {!isBDA && unassignedCount < 150 && (
+      {isTL && unassignedCount < 150 && (
         <div style={{
           background: 'var(--danger-light)', border: '1px solid var(--danger)',
           borderRadius: 'var(--radius-md)', padding: '1rem 1.25rem',
