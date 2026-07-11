@@ -1,24 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, User, Mail, Eye, EyeOff, Key, Shield, ChevronDown, Check, Loader } from 'lucide-react';
+import { X, User, Mail, Eye, EyeOff, Key, Shield, ShieldCheck, Users, Target, UserCheck, ChevronDown, Check, Loader } from 'lucide-react';
 
 const roleOptions = {
   admin: [
-    { value: 'admin', label: 'Administrator', icon: '👑' },
-    { value: 'ops_head', label: 'Operations Head', icon: '🛡' },
-    { value: 'hr', label: 'HR Department', icon: '📋' },
-    { value: 'team_lead', label: 'Team Lead', icon: '🎯' },
-    { value: 'bda', label: 'Business Development Associate', icon: '🤝' }
+    { value: 'admin', label: 'Administrator', icon: ShieldCheck },
+    { value: 'ops_head', label: 'Operations Head', icon: Shield },
+    { value: 'hr', label: 'HR Department', icon: Users },
+    { value: 'team_lead', label: 'Team Lead', icon: Target },
+    { value: 'bda', label: 'Business Development Associate', icon: UserCheck }
   ],
   hr: [
-    { value: 'team_lead', label: 'Team Lead', icon: '🎯' },
-    { value: 'bda', label: 'Business Development Associate', icon: '🤝' }
+    { value: 'team_lead', label: 'Team Lead', icon: Target },
+    { value: 'bda', label: 'Business Development Associate', icon: UserCheck }
   ],
   ops_head: [
-    { value: 'team_lead', label: 'Team Lead', icon: '🎯' },
-    { value: 'bda', label: 'Business Development Associate', icon: '🤝' }
+    { value: 'team_lead', label: 'Team Lead', icon: Target },
+    { value: 'bda', label: 'Business Development Associate', icon: UserCheck }
   ],
   team_lead: [
-    { value: 'bda', label: 'Business Development Associate', icon: '🤝' }
+    { value: 'bda', label: 'Business Development Associate', icon: UserCheck }
   ]
 };
 
@@ -376,7 +376,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onSave, currentRole }) => {
                   }}
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 18, lineHeight: 1 }}>{selectedRole?.icon}</span>
+                    {selectedRole && <selectedRole.icon size={18} style={{ color: '#6B7280', flexShrink: 0 }} />}
                     <span style={{ color: '#111827', fontSize: 15, fontWeight: 500 }}>{selectedRole?.label}</span>
                   </span>
                   <ChevronDown size={16} style={{ color: '#9CA3AF', transition: 'transform 200ms', transform: roleOpen ? 'rotate(180deg)' : 'rotate(0)' }} />
@@ -407,7 +407,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onSave, currentRole }) => {
                           fontWeight: role === r.value ? 600 : 500, textAlign: 'left', transition: 'all 100ms',
                         }}
                       >
-                        <span style={{ fontSize: 18, lineHeight: 1 }}>{r.icon}</span>
+                        {<r.icon size={18} style={{ color: role === r.value ? '#2563EB' : '#6B7280', flexShrink: 0 }} />}
                         <span style={{ flex: 1 }}>{r.label}</span>
                         {role === r.value && <Check size={16} style={{ color: '#2563EB' }} />}
                       </button>
