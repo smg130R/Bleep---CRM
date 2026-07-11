@@ -442,6 +442,7 @@ router.post('/fetch-leads', authenticateToken, requireRoles(['bda']), async (req
         }
         if (assignments.length > 0) {
           await updateMasterSheetAssignments(sheetId, 'Sheet1', assignments);
+          await supabase.from('leads').update({ assignedInMaster: true }).in('id', leadIds);
         }
       }
     } catch (masterErr) {
