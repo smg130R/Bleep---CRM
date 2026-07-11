@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Line, Bar } from 'react-chartjs-2';
 import {
@@ -9,7 +9,7 @@ import {
   Phone, PhoneIncoming, UserPlus, ShoppingBag, CreditCard,
   AlertTriangle, TrendingUp, DollarSign, Users, Image, Loader,
   BarChart3, Calendar, Clock, Activity, Target, ArrowUpRight,
-  ArrowDownRight, RefreshCw, Download, Filter, ArrowLeft
+  ArrowDownRight, RefreshCw, Download, Filter, ArrowLeft, X
 } from 'lucide-react';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler);
@@ -123,6 +123,18 @@ const Dashboard = ({ dateFilter }) => {
   const connRate = stats.calls > 0 ? ((stats.connects / stats.calls) * 100).toFixed(1) : 0;
   const prevRate = stats.calls > 0 ? 0 : 0;
 
+  const [detailCard, setDetailCard] = useState(null);
+
+  const cardDetails = {
+    calls: { label: 'Total Calls', detail: isAdmin ? `Across all teams (${teams.length} teams)` : 'Your outbound calls', breakdown: isAdmin ? teams.map(t => ({ name: t.name, value: t.calls })) : null },
+    connects: { label: 'Total Connects', detail: 'Connected calls', breakdown: isAdmin ? teams.map(t => ({ name: t.name, value: t.connects })) : null },
+    rate: { label: 'Connection Rate', detail: `${connRate}% — ${stats.connects} connects out of ${stats.calls} calls` },
+    prospects: { label: 'Prospects', detail: `${stats.prospects} total prospects` },
+    screenshots: { label: 'Screenshots', detail: `${stats.screenshots} screenshots taken` },
+    sCalls: { label: 'Sales Calls', detail: `${stats.sCalls} sales calls` },
+    deals: { label: 'Deals Closed', detail: `${stats.deals} deals closed` },
+  };
+
   const kpiCards = [
     { key: 'calls', label: isBDA ? 'My Calls' : 'Team Calls', value: stats.calls, icon: Phone, trend: '+12%', color: 'blue' },
     { key: 'connects', label: 'Connected', value: stats.connects, icon: PhoneIncoming, trend: '+8%', color: 'green' },
@@ -170,7 +182,7 @@ const Dashboard = ({ dateFilter }) => {
         )) : kpiCards.map(card => {
           const Icon = card.icon;
           return (
-            <div key={card.key} className={`kpi-card ${cardColor(card.key)}`} style={{ '--card-accent': 'var(--primary)' }}>
+            <div key={card.key} className={`kpi-card ${cardColor(card.key)}`} onClick={() => setDetailCard(card.key)} style={{ cursor: 'pointer', '--card-accent': 'var(--primary)' }}>
               <div className="kpi-card-header">
                 <span className="kpi-card-title">{card.label}</span>
                 <div className="kpi-card-icon"><Icon size={18} /></div>
@@ -206,7 +218,7 @@ const Dashboard = ({ dateFilter }) => {
         <div className="chart-card">
           <div className="chart-header">
             <h3>Division Performance</h3>
-            {isAdmin && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Click a team to drill into BDAs</span>}
+            {isAdmin && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Click a team card to drill into BDAs</span>}
           </div>
           <div className="chart-container" style={{ height: 280 }}>
             {isAdmin ? (
@@ -218,7 +230,6 @@ const Dashboard = ({ dateFilter }) => {
                   datasets: [{ label: 'Calls', data: teams.map(t => t.calls), backgroundColor: teams.map((_, i) => TEAM_COLORS[i % TEAM_COLORS.length]), borderRadius: 6 }]
                 }} options={{
                   responsive: true, maintainAspectRatio: false,
-                  onClick: (_, els) => { if (els.length > 0) handleDrill(els[0].dataIndex); },
                   plugins: {
                     tooltip: { callbacks: { label: (ctx) => `${ctx.raw} calls` } },
                     legend: { display: false },
@@ -238,6 +249,27 @@ const Dashboard = ({ dateFilter }) => {
               }} />
             )}
           </div>
+          {isAdmin && teams.length > 0 && (
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', padding: '0.75rem 1rem 1rem', borderTop: '1px solid var(--border)' }}>
+              {teams.map((t, i) => (
+                <div key={t.id} onClick={() => handleDrill(i)} style={{
+                  display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem',
+                  borderRadius: '8px', background: TEAM_COLORS[i % TEAM_COLORS.length] + '15',
+                  border: '1px solid ' + TEAM_COLORS[i % TEAM_COLORS.length] + '30',
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = ''}
+                >
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: TEAM_COLORS[i % TEAM_COLORS.length] }} />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{t.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t.calls} calls · {t.connects} conn</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -294,6 +326,36 @@ const Dashboard = ({ dateFilter }) => {
           <div className="kpi-card red">
             <div className="kpi-card-header"><span className="kpi-card-title">Outstanding</span><BarChart3 size={18} /></div>
             <div className="kpi-card-value">₹{(payStats.totalOutstanding || 0).toLocaleString()}</div>
+          </div>
+        </div>
+      )}
+
+      {/* KPI Detail Modal */}
+      {detailCard && cardDetails[detailCard] && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)',
+        }} onClick={() => setDetailCard(null)}>
+          <div className="content-card" style={{ maxWidth: 420, width: '90%', padding: '1.5rem' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0 }}>{cardDetails[detailCard].label}</h3>
+              <button className="btn-ghost" onClick={() => setDetailCard(null)} style={{ padding: 4 }}><X size={18} /></button>
+            </div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem' }}>
+              {kpiCards.find(c => c.key === detailCard)?.value}
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: '1rem' }}>{cardDetails[detailCard].detail}</p>
+            {cardDetails[detailCard].breakdown && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {cardDetails[detailCard].breakdown.map(b => (
+                  <div key={b.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: 14 }}>{b.name}</span>
+                    <span style={{ fontSize: 14, fontWeight: 600 }}>{b.value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
