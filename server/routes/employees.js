@@ -337,7 +337,7 @@ router.delete('/:id', authenticateToken, requireRoles(['admin', 'hr', 'ops_head'
     await supabase.from('calling_sheet').delete().eq('assignedUserId', id);
 
     // 4. Deactivate user
-    const { error: deactErr } = await supabase.from('users').update({ status: 'inactive' }).eq('id', id);
+    const { error: deactErr } = await supabase.from('users').update({ status: 'suspended' }).eq('id', id);
     if (deactErr) throw deactErr;
 
     // 5. Delete from Supabase Auth (if authId exists)
