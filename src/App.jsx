@@ -94,7 +94,7 @@ const MainApp = () => {
         <style>{'#menu-toggle-btn { display: none; } @media (max-width: 1024px) { #menu-toggle-btn { display: inline-flex !important; } }'}</style>
 
         {/* Dynamic Pages Container */}
-        <main className="content-body" style={{ padding: '2rem' }}>
+        <main className="content-body">
           {activePage === 'dashboard' && <Dashboard dateFilter={dateFilter} />}
           {activePage === 'kpi-board' && <KpiBoard dateFilter={dateFilter} showToast={showToast} />}
           {activePage === 'team-structure' && <TeamStructure showToast={showToast} />}

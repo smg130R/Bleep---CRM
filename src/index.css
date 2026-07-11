@@ -2159,3 +2159,424 @@ th.drop-target {
   white-space: nowrap;
   font-size: 0.75rem;
 }
+
+/* ── Comprehensive Responsive ── */
+
+/* Tablet landscape */
+@media (max-width: 1200px) {
+  .content-body {
+    padding: 1.5rem !important;
+  }
+}
+
+/* Tablet portrait */
+@media (max-width: 1024px) {
+  .app-header {
+    padding: 0 1.25rem;
+    height: 64px;
+  }
+  .header-title-wrapper h1 {
+    font-size: 17px;
+  }
+  .header-title-wrapper p {
+    display: none;
+  }
+  .header-profile-info {
+    display: none;
+  }
+  .header-date-filter button {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+  .content-body {
+    padding: 1.25rem !important;
+  }
+  .dashboard-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.875rem;
+  }
+  .kpi-card {
+    padding: 1rem;
+  }
+  .kpi-card-title {
+    font-size: 12px;
+  }
+  .kpi-card-icon {
+    width: 32px;
+    height: 32px;
+  }
+  .kpi-card-header {
+    margin-bottom: 0.5rem;
+  }
+  .view-section.active {
+    gap: 1rem;
+  }
+  .org-chart-wrapper {
+    padding: 1.25rem;
+  }
+  .org-chart {
+    min-width: 600px;
+  }
+  .header-date-filter {
+    gap: 2px;
+  }
+  .header-icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+  .header-icon-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+  .data-table th,
+  .data-table td {
+    padding: 0.5rem 0.6rem;
+    font-size: 0.75rem;
+  }
+  .table-select {
+    width: 110px;
+    font-size: 0.7rem;
+    padding: 0.25rem 0.4rem;
+  }
+  .table-input {
+    min-width: 80px;
+    font-size: 0.7rem;
+    padding: 0.25rem 0.4rem;
+  }
+  .btn {
+    font-size: 12px !important;
+    padding: 0.4rem 0.75rem !important;
+    height: auto !important;
+  }
+  .team-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Mobile large */
+@media (max-width: 768px) {
+  .app-header {
+    padding: 0 0.875rem;
+    height: 56px;
+  }
+  .header-left h1 {
+    font-size: 15px !important;
+  }
+  .header-left .header-title-wrapper h1 {
+    font-size: 15px !important;
+  }
+  .header-left > div > p {
+    display: none;
+  }
+  .header-right {
+    gap: 6px;
+  }
+  .header-date-filter button {
+    padding: 3px 8px;
+    font-size: 11px;
+  }
+  .header-icon-btn {
+    display: none;
+  }
+  .header-profile-card {
+    padding: 2px 8px 2px 2px;
+  }
+  .header-avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 11px;
+  }
+  .content-body {
+    padding: 0.875rem !important;
+  }
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.625rem;
+  }
+  .kpi-card {
+    padding: 0.75rem;
+  }
+  .kpi-card-title {
+    font-size: 11px;
+  }
+  .kpi-card-value {
+    font-size: 1.25rem !important;
+  }
+  .kpi-card-icon {
+    width: 28px;
+    height: 28px;
+  }
+  .kpi-card-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+  .view-section.active {
+    gap: 0.75rem;
+  }
+  .dashboard-charts-grid {
+    grid-template-columns: 1fr;
+  }
+  .chart-container {
+    height: 200px;
+  }
+  .content-card {
+    border-radius: var(--radius-md);
+  }
+  .card-header {
+    padding: 0.75rem 1rem;
+  }
+  .card-title {
+    font-size: 14px;
+  }
+  .data-table th,
+  .data-table td {
+    padding: 0.4rem 0.5rem;
+    font-size: 0.7rem;
+  }
+  .table-select {
+    width: 90px;
+    font-size: 0.65rem;
+    padding: 0.2rem 0.35rem;
+  }
+  .table-input {
+    min-width: 60px;
+    font-size: 0.65rem;
+    padding: 0.2rem 0.35rem;
+  }
+  .table-responsive .data-table {
+    min-width: 1000px;
+    table-layout: auto !important;
+  }
+  .data-table th {
+    font-size: 0.65rem;
+    padding: 0.4rem 0.5rem;
+  }
+  .badge {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+  /* Ensure scrollable table is not clipped by parent overflow */
+  .content-card > .table-responsive {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .header-complaint-btn {
+    height: 30px !important;
+    padding: 0 8px !important;
+    font-size: 11px !important;
+  }
+  .header-complaint-btn svg {
+    width: 12px;
+    height: 12px;
+  }
+  .view-section.active > .content-card {
+    margin-bottom: 0.75rem !important;
+  }
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+  .team-stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .reports-grid {
+    grid-template-columns: 1fr;
+  }
+  .org-chart {
+    min-width: 500px;
+  }
+  .org-node {
+    min-width: 120px;
+    padding: 0.6rem 0.8rem;
+  }
+  .org-node .node-name {
+    font-size: 0.75rem;
+  }
+  .org-node .node-role {
+    font-size: 0.6rem;
+  }
+  .org-level {
+    gap: 1rem;
+  }
+  .modal-content {
+    max-width: 95vw !important;
+    margin: 1rem auto;
+  }
+  .view-section.active > div[style*="display: flex"][style*="gap"] > .btn {
+    font-size: 11px !important;
+    padding: 0.35rem 0.6rem !important;
+  }
+  /* Stack filter/action bars on mobile */
+  .table-controls-panel {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: stretch !important;
+  }
+  .table-controls-panel > div {
+    flex-wrap: wrap;
+    gap: 0.375rem;
+  }
+  .table-controls-panel input[type="text"],
+  .table-controls-panel select {
+    width: 100%;
+    min-width: 0;
+  }
+  .low-perf-banner {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem !important;
+  }
+  /* Team cards */
+  .team-card-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .member-card-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  /* Tooltip adjustments */
+  .click-to-copy-tooltip {
+    font-size: 0.65rem;
+  }
+}
+
+/* Mobile small */
+@media (max-width: 480px) {
+  .app-header {
+    height: 50px;
+  }
+  .header-left h1 {
+    font-size: 13px !important;
+  }
+  .header-left .header-title-wrapper h1 {
+    font-size: 13px !important;
+  }
+  .header-date-filter button {
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+  .content-body {
+    padding: 0.625rem !important;
+  }
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  .kpi-card {
+    padding: 0.625rem;
+  }
+  .kpi-card-title {
+    font-size: 10px;
+  }
+  .kpi-card-value {
+    font-size: 1.1rem !important;
+  }
+  .kpi-card-icon {
+    width: 24px;
+    height: 24px;
+  }
+  .kpi-card-icon svg {
+    width: 12px;
+    height: 12px;
+  }
+  .chart-container {
+    height: 180px;
+  }
+  .table-responsive .data-table {
+    min-width: 1000px;
+    table-layout: auto !important;
+  }
+  .data-table th {
+    font-size: 0.6rem;
+    padding: 0.3rem 0.4rem;
+  }
+  .data-table td {
+    font-size: 0.65rem;
+    padding: 0.3rem 0.4rem;
+  }
+  .btn {
+    font-size: 11px !important;
+    padding: 0.3rem 0.6rem !important;
+  }
+  .content-card {
+    border-radius: var(--radius-sm);
+  }
+  .header-right .btn-danger,
+  .header-right .header-complaint-btn {
+    height: 26px !important;
+    padding: 0 6px !important;
+    font-size: 10px !important;
+  }
+  .header-right .btn-danger svg,
+  .header-right .header-complaint-btn svg {
+    width: 10px;
+    height: 10px;
+  }
+  .header-right > button:not(.header-icon-btn):not(.header-profile-card) {
+    height: 26px !important;
+    padding: 0 6px !important;
+    font-size: 10px !important;
+  }
+  .header-profile-card {
+    gap: 4px;
+  }
+  .header-avatar {
+    width: 26px;
+    height: 26px;
+    font-size: 10px;
+  }
+  .team-card-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .member-card-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .team-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .org-chart {
+    min-width: 400px;
+  }
+  .org-node {
+    min-width: 90px;
+    padding: 0.4rem 0.6rem;
+  }
+  .org-level {
+    gap: 0.5rem;
+  }
+  .view-section.active > div[style*="display: flex"][style*="gap"] {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  .view-section.active > div[style*="display: flex"][style*="gap"] > div {
+    justify-content: center;
+  }
+}
+
+/* Fix header complaint button class name */
+.header-complaint-btn {
+  height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+/* Low perf banner responsive */
+.low-perf-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-radius: var(--radius-lg);
+}
+
+/* Team cards grid helpers */
+.team-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.member-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.625rem;
+}
