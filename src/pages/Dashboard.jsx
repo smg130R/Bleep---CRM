@@ -9,10 +9,12 @@ import {
   Phone, PhoneIncoming, UserPlus, ShoppingBag, CreditCard,
   AlertTriangle, TrendingUp, DollarSign, Users, Image, Loader,
   BarChart3, Calendar, Clock, Activity, Target, ArrowUpRight,
-  ArrowDownRight, RefreshCw, Download, Filter
+  ArrowDownRight, RefreshCw, Download, Filter, ArrowLeft
 } from 'lucide-react';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler);
+
+const TEAM_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#f97316', '#06b6d4', '#ec4899'];
 
 const cardColor = (label) => {
   const map = {
@@ -28,6 +30,7 @@ const Dashboard = ({ dateFilter }) => {
   const role = user?.role;
   const isBDA = role === 'bda';
   const isTL = role === 'team_lead';
+  const isAdmin = role === 'admin' || role === 'ops_head';
 
   const [stats, setStats] = useState({ calls: 0, connects: 0, screenshots: 0, prospects: 0, deals: 0, score: 0, sCalls: 0 });
   const [chartData, setChartData] = useState([]);
@@ -35,12 +38,40 @@ const Dashboard = ({ dateFilter }) => {
   const [loading, setLoading] = useState(true);
   const [payStats, setPayStats] = useState({ total: 0, slotBookingCount: 0, totalSlotAmount: 0, totalCollected: 0, totalOutstanding: 0 });
   const [unassignedCount, setUnassignedCount] = useState(0);
+  const [teams, setTeams] = useState([]);
+  const [selectedTeam, setSelectedTeam] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [memberLoading, setMemberLoading] = useState(false);
 
   const greet = () => {
     const h = new Date().getHours();
     if (h < 12) return 'Good Morning';
     if (h < 17) return 'Good Afternoon';
     return 'Good Evening';
+  };
+
+  const fetchTeamBreakdown = async () => {
+    if (!isAdmin) return;
+    setTeamLoading(true);
+    try {
+      const rangeMap = { 'Today': 'today', '7 Days': 'weekly', '30 Days': 'monthly' };
+      const range = rangeMap[dateFilter] || 'today';
+      const res = await fetch(`/api/kpi/teams-breakdown?range=${range}`, { credentials: 'include' });
+      if (res.ok) setTeams((await res.json()).teams || []);
+    } catch (e) { console.error(e); }
+    finally { setTeamLoading(false); }
+  };
+
+  const fetchMembers = async (teamId) => {
+    setMemberLoading(true);
+    try {
+      const rangeMap = { 'Today': 'today', '7 Days': 'weekly', '30 Days': 'monthly' };
+      const range = rangeMap[dateFilter] || 'today';
+      const res = await fetch(`/api/kpi/team-members/${teamId}?range=${range}`, { credentials: 'include' });
+      if (res.ok) setMembers((await res.json()).members || []);
+    } catch (e) { console.error(e); }
+    finally { setMemberLoading(false); }
   };
 
   const fetchData = async () => {
@@ -64,7 +95,16 @@ const Dashboard = ({ dateFilter }) => {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchData(); const i = setInterval(fetchData, 15000); return () => clearInterval(i); }, [role, dateFilter]);
+  const handleDrill = (idx) => {
+    if (!teams[idx]) return;
+    const team = teams[idx];
+    setSelectedTeam(team);
+    fetchMembers(team.id);
+  };
+
+  useEffect(() => { fetchData(); fetchTeamBreakdown(); const i = setInterval(() => { fetchData(); fetchTeamBreakdown(); }, 15000); return () => clearInterval(i); }, [role, dateFilter]);
+
+  useEffect(() => { if (!selectedTeam) setMembers([]); }, [selectedTeam]);
 
   const lineData = {
     labels: chartData.map(c => c.date?.slice(5) || ''),
@@ -166,22 +206,74 @@ const Dashboard = ({ dateFilter }) => {
         <div className="chart-card">
           <div className="chart-header">
             <h3>Division Performance</h3>
-            <button className="btn-ghost" style={{ padding: '6px 10px', fontSize: 12 }}><Filter size={14} /> This Week</button>
+            {isAdmin && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Click a team to drill into BDAs</span>}
           </div>
           <div className="chart-container" style={{ height: 280 }}>
-            <Bar data={{
-              labels: ['Calls', 'Connects', 'Deals'],
-              datasets: [{
-                label: 'You', data: [stats.calls, stats.connects, stats.deals],
-                backgroundColor: '#2563EB', borderRadius: 6, borderSkipped: false,
-              }],
-            }} options={{
-              ...lineOpts,
-              plugins: { legend: { display: false } },
-            }} />
+            {isAdmin ? (
+              teamLoading ? (
+                <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Loading teams...</div>
+              ) : teams.length ? (
+                <Bar data={{
+                  labels: teams.map(t => t.name),
+                  datasets: [{ label: 'Calls', data: teams.map(t => t.calls), backgroundColor: teams.map((_, i) => TEAM_COLORS[i % TEAM_COLORS.length]), borderRadius: 6 }]
+                }} options={{
+                  responsive: true, maintainAspectRatio: false,
+                  onClick: (_, els) => { if (els.length > 0) handleDrill(els[0].dataIndex); },
+                  plugins: {
+                    tooltip: { callbacks: { label: (ctx) => `${ctx.raw} calls` } },
+                    legend: { display: false },
+                  },
+                  scales: { y: { beginAtZero: true, grid: { color: '#F1F5F9' } }, x: { grid: { display: false } } },
+                }} />
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>No data available</div>
+              )
+            ) : (
+              <Bar data={{
+                labels: ['Calls', 'Connects', 'Deals'],
+                datasets: [{ label: 'You', data: [stats.calls, stats.connects, stats.deals], backgroundColor: '#2563EB', borderRadius: 6, borderSkipped: false }],
+              }} options={{
+                ...lineOpts,
+                plugins: { legend: { display: false } },
+              }} />
+            )}
           </div>
         </div>
       </div>
+
+      {/* Team Drill-down (admin only) */}
+      {isAdmin && selectedTeam && (
+        <div className="content-card" style={{ padding: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+            <button className="btn btn-secondary" onClick={() => setSelectedTeam(null)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ArrowLeft size={14} /> Back
+            </button>
+            <h3 style={{ margin: 0 }}>{selectedTeam.name} — BDA Breakdown</h3>
+          </div>
+          {memberLoading ? (
+            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Loading members...</div>
+          ) : members.length > 0 ? (
+            <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+              {members.map((m, i) => (
+                <div key={m.id} className="kpi-card blue">
+                  <div className="kpi-card-header">
+                    <span className="kpi-card-title">{m.name}</span>
+                    <Users size={18} />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.75rem' }}>
+                    <div><span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Calls</span><div style={{ fontSize: '1.1rem', fontWeight: 700 }}>{m.mCalls + m.eCalls}</div></div>
+                    <div><span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Connects</span><div style={{ fontSize: '1.1rem', fontWeight: 700 }}>{m.mConn + m.eConn}</div></div>
+                    <div><span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Deals</span><div style={{ fontSize: '1.1rem', fontWeight: 700 }}>{m.deals}</div></div>
+                    <div><span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Score</span><div style={{ fontSize: '1.1rem', fontWeight: 700 }}>{m.perfScore}</div></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>No data for this team</div>
+          )}
+        </div>
+      )}
 
       {/* BDA Payment Row */}
       {isBDA && (
