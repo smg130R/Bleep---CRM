@@ -312,4 +312,45 @@ router.post('/', authenticateToken, requireRoles(['admin', 'hr', 'ops_head', 'te
   }
 });
 
+// DELETE /api/employees/:id - Remove employee (deactivate + reassign)
+router.delete('/:id', authenticateToken, requireRoles(['admin', 'hr', 'ops_head', 'team_lead']), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { data: target, error: findErr } = await supabase
+      .from('users').select('id, name, role, teamId, authId').eq('id', id).single();
+    if (findErr || !target) return res.status(404).json({ message: 'Employee not found.' });
+
+    // Team leads can only remove BDAs from their own team
+    if (req.user.role === 'team_lead') {
+      if (target.role !== 'bda' || target.teamId !== req.user.teamId) {
+        return res.status(403).json({ message: 'You can only remove BDAs from your own team.' });
+      }
+    }
+
+    // 1. Unassign leads
+    await supabase.from('leads').update({ currentAssigneeId: null, status: 'unassigned' }).eq('currentAssigneeId', id);
+
+    // 2. Unassign prospects
+    await supabase.from('prospects').update({ bdaId: null }).eq('bdaId', id);
+
+    // 3. Delete calling sheet entries
+    await supabase.from('calling_sheet').delete().eq('assignedUserId', id);
+
+    // 4. Deactivate user
+    const { error: deactErr } = await supabase.from('users').update({ status: 'inactive' }).eq('id', id);
+    if (deactErr) throw deactErr;
+
+    // 5. Delete from Supabase Auth (if authId exists)
+    if (target.authId) {
+      const { error: authErr } = await supabase.auth.admin.deleteUser(target.authId);
+      if (authErr) console.error('Delete auth user error:', authErr.message);
+    }
+
+    return res.json({ message: `${target.name} removed successfully. Leads and prospects have been unassigned.` });
+  } catch (error) {
+    console.error('Remove employee error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 module.exports = router;
