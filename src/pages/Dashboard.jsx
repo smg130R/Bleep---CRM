@@ -31,7 +31,7 @@ const Dashboard = ({ dateFilter, showToast }) => {
   const role = user?.role;
   const isBDA = role === 'bda';
   const isTL = role === 'team_lead';
-  const isAdmin = role === 'admin' || role === 'ops_head';
+  const isAdmin = role === 'admin' || role === 'ops_head' || role === 'hr';
 
   const [stats, setStats] = useState({ calls: 0, connects: 0, screenshots: 0, prospects: 0, deals: 0, score: 0, sCalls: 0 });
   const [chartData, setChartData] = useState([]);

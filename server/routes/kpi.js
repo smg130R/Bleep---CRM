@@ -18,7 +18,7 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     let stats = { calls: 0, connects: 0, screenshots: 0, prospects: 0, deals: 0, score: 0, sCalls: 0 };
     let chartData = [];
 
-    if (req.user.role === 'admin' || req.user.role === 'ops_head') {
+    if (['admin', 'ops_head', 'hr'].includes(req.user.role)) {
       const { data: rows, error } = await supabase
         .from('kpi_records')
         .select('mCalls, mConn, mSS, mPros, eCalls, eConn, eSS, ePros, deals, perfScore')
@@ -150,7 +150,7 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     // Add prospect counts from prospects table
     let prospectStats = { total: 0, registered: 0, converted: 0 };
 
-    if (req.user.role === 'admin' || req.user.role === 'ops_head') {
+    if (['admin', 'ops_head', 'hr'].includes(req.user.role)) {
       const { data: allPros } = await supabase.from('prospects').select('status');
       if (allPros) {
         prospectStats.total = allPros.length;
