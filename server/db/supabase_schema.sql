@@ -9,6 +9,7 @@ DROP TABLE IF EXISTS leads CASCADE;
 DROP TABLE IF EXISTS prospects CASCADE;
 DROP TABLE IF EXISTS complaints CASCADE;
 DROP TABLE IF EXISTS leaves CASCADE;
+DROP TABLE IF EXISTS notifications CASCADE;
 DROP TABLE IF EXISTS followups CASCADE;
 DROP TABLE IF EXISTS calling_sheet CASCADE;
 DROP TABLE IF EXISTS kpi_records CASCADE;
@@ -213,6 +214,23 @@ CREATE INDEX idx_prospects_bda ON prospects("bdaId");
 CREATE INDEX idx_prospects_status ON prospects(status);
 
 -- =====================================================
+-- NOTIFICATIONS
+-- =====================================================
+CREATE TABLE notifications (
+  id SERIAL PRIMARY KEY,
+  "userId" INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'info' CHECK (type IN ('info','warning','success','danger','ping')),
+  "isRead" BOOLEAN DEFAULT FALSE,
+  "linkTo" TEXT,
+  "createdAt" TEXT DEFAULT to_char(CURRENT_DATE, 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+);
+
+CREATE INDEX idx_notifications_user ON notifications("userId");
+CREATE INDEX idx_notifications_unread ON notifications("userId", "isRead") WHERE NOT "isRead";
+
+-- =====================================================
 -- SUPABASE AUTH TRIGGER
 -- Auto-create public.users row when user signs up via Supabase Auth
 -- =====================================================
@@ -265,6 +283,7 @@ CREATE POLICY "Service role full access followups" ON followups FOR ALL USING (t
 CREATE POLICY "Service role full access leaves" ON leaves FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Service role full access prospects" ON prospects FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Service role full access complaints" ON complaints FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Service role full access notifications" ON notifications FOR ALL USING (true) WITH CHECK (true);
 
 -- Note: If you switch to anon key + JWT auth, replace the policies above
 -- with row-level checks based on auth.uid() and the user's role.

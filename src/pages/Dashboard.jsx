@@ -25,7 +25,7 @@ const cardColor = (label) => {
   return map[label] || 'blue';
 };
 
-const Dashboard = ({ dateFilter }) => {
+const Dashboard = ({ dateFilter, showToast }) => {
   const { user } = useAuth();
   const role = user?.role;
   const isBDA = role === 'bda';
@@ -397,7 +397,30 @@ const Dashboard = ({ dateFilter }) => {
                       </div>
                     </td>
                     <td><span className="badge needs-push">Needs Push</span></td>
-                    <td><button className="btn btn-secondary" style={{ padding: '4px 12px', fontSize: 12 }}>Ping Lead</button></td>
+                    <td>
+                      <button
+                        className="btn btn-secondary"
+                        style={{ padding: '4px 12px', fontSize: 12 }}
+                        onClick={async () => {
+                          try {
+                            const res = await fetch('/api/notifications/ping-bda', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                bdaId: b.id,
+                                message: `${user.name} pinged you — your performance score is ${b.perfScore}%. Please check in with your team lead.`
+                              })
+                            });
+                            const data = await res.json();
+                            showToast(data.message || 'Ping sent!');
+                          } catch {
+                            showToast('Failed to send ping.', true);
+                          }
+                        }}
+                      >
+                        Ping BDA
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

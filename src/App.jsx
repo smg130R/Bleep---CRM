@@ -5,6 +5,7 @@ import Header from './components/Header';
 import Toast from './components/Toast';
 import ComplaintModal from './components/ComplaintModal';
 import ProfileModal from './components/ProfileModal';
+import NotificationModal from './components/NotificationModal';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import KpiBoard from './pages/KpiBoard';
@@ -25,6 +26,7 @@ const MainApp = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isComplaintModalOpen, setIsComplaintModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   
   // Global Toast State
   const [toastMessage, setToastMessage] = useState('');
@@ -90,12 +92,13 @@ const MainApp = () => {
           onOpenComplaintModal={() => setIsComplaintModalOpen(true)}
           onOpenProfile={() => setIsProfileModalOpen(true)}
           setSidebarOpen={setSidebarOpen}
+          onOpenNotifications={() => setIsNotificationModalOpen(true)}
         />
         <style>{'#menu-toggle-btn { display: none; } @media (max-width: 1024px) { #menu-toggle-btn { display: inline-flex !important; } }'}</style>
 
         {/* Dynamic Pages Container */}
         <main className="content-body">
-          {activePage === 'dashboard' && <Dashboard dateFilter={dateFilter} />}
+          {activePage === 'dashboard' && <Dashboard dateFilter={dateFilter} showToast={showToast} />}
           {activePage === 'kpi-board' && <KpiBoard dateFilter={dateFilter} showToast={showToast} />}
           {activePage === 'team-structure' && <TeamStructure showToast={showToast} />}
           {activePage === 'employee-master' && <EmployeeMaster showToast={showToast} />}
@@ -120,6 +123,11 @@ const MainApp = () => {
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
         showToast={showToast}
+      />
+
+      <NotificationModal
+        isOpen={isNotificationModalOpen}
+        onClose={() => setIsNotificationModalOpen(false)}
       />
 
       <Toast 

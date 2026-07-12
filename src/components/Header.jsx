@@ -25,7 +25,7 @@ const roleLabels = {
   team_lead: 'Team Lead', bda: 'BDA',
 };
 
-const Header = ({ activePage, dateFilter, setDateFilter, onOpenComplaintModal, setSidebarOpen, onOpenProfile }) => {
+const Header = ({ activePage, dateFilter, setDateFilter, onOpenComplaintModal, setSidebarOpen, onOpenProfile, onOpenNotifications }) => {
   const { user } = useAuth();
   if (!user) return null;
 
@@ -59,12 +59,11 @@ const Header = ({ activePage, dateFilter, setDateFilter, onOpenComplaintModal, s
           </button>
         )}
 
-        <button className="header-icon-btn" title="Notifications">
+        <button className="header-icon-btn" title="Notifications" onClick={onOpenNotifications}>
           <Bell size={18} />
-          <span className="header-icon-badge" />
         </button>
 
-        <button className="header-icon-btn" title="Help">
+        <button className="header-icon-btn" title="Help" onClick={() => window.open('https://opencode.ai', '_blank')}>
           <HelpCircle size={18} />
         </button>
 
