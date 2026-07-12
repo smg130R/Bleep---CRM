@@ -82,16 +82,15 @@ const Sidebar = ({ activePage, setActivePage, sidebarOpen, setSidebarOpen }) => 
           {menuItems.map(item => {
             if (!allowed.includes(item.id)) return null;
             const Icon = item.icon;
-            const isHrGroup = item.id.startsWith('hr-');
             const active = item.id === activePage;
             return (
               <button
                 key={item.id}
                 className={`sidebar-nav-item ${active ? 'active' : ''}`}
-                style={{ fontSize: isHrGroup ? 13 : 14, paddingLeft: isHrGroup ? 28 : 16 }}
+                style={{ fontSize: 14, paddingLeft: 16 }}
                 onClick={() => { setActivePage(item.id); setSidebarOpen(false); }}
               >
-                <Icon size={isHrGroup ? 16 : 18} />
+                <Icon size={18} />
                 <span>{item.name}</span>
               </button>
             );
