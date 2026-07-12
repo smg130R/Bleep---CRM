@@ -39,6 +39,7 @@ const Dashboard = ({ dateFilter, showToast }) => {
   const [loading, setLoading] = useState(true);
   const [payStats, setPayStats] = useState({ total: 0, slotBookingCount: 0, totalSlotAmount: 0, totalCollected: 0, totalOutstanding: 0 });
   const [unassignedCount, setUnassignedCount] = useState(0);
+  const [minCallsTarget, setMinCallsTarget] = useState(60);
   const [hrNotices, setHrNotices] = useState([]);
   const [hrEvents, setHrEvents] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -91,7 +92,13 @@ const Dashboard = ({ dateFilter, showToast }) => {
         fetch('/api/team-lead/unassigned-count'),
       ]);
       if (kpiRes.ok) { const d = await kpiRes.json(); setStats(d.stats); if (d.chartData) setChartData(d.chartData); }
-      if (lbRes.ok) { const d = await lbRes.json(); setLowPerf((d.leaderboard || []).filter(b => b.perfScore < 40)); }
+      if (lbRes.ok) {
+        const lbData = await lbRes.json();
+        const configRes = await fetch('/api/settings');
+        const target = configRes.ok ? Number((await configRes.json()).config?.minCallsTarget) || 60 : 60;
+        setMinCallsTarget(target);
+        setLowPerf((lbData.leaderboard || []).filter(b => (b.totalCalls || 0) < target));
+      }
       if (psRes.ok) { setPayStats(await psRes.json()); }
       if (ucRes.ok) { const d = await ucRes.json(); setUnassignedCount(d.count || 0); }
       // HR notices & events (admin/hr only)
