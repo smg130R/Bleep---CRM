@@ -69,25 +69,56 @@ router.patch('/:id/read', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/notifications/ping-bda - TL/Admin pings a BDA for low performance
-router.post('/ping-bda', authenticateToken, requireRoles(['admin', 'team_lead', 'ops_head']), async (req, res) => {
+// POST /api/notifications/ping-bda - TL/Admin/HR pings a BDA for low performance
+router.post('/ping-bda', authenticateToken, requireRoles(['admin', 'team_lead', 'ops_head', 'hr']), async (req, res) => {
   try {
     const { bdaId, message } = req.body;
     if (!bdaId) return res.status(400).json({ message: 'BDA ID is required.' });
 
-    const { data: bda } = await supabase.from('users').select('id, name').eq('id', bdaId).single();
+    const { data: bda } = await supabase.from('users').select('id, name, teamId').eq('id', bdaId).single();
     if (!bda) return res.status(400).json({ message: 'BDA not found.' });
 
+    const now = new Date().toISOString();
+
+    // Notify the BDA
     const { data: notif, error } = await supabase.from('notifications').insert({
       userId: bdaId,
       title: 'Performance Alert',
       body: message || `${req.user.name} pinged you about low performance. Please check your KPIs.`,
       type: 'ping',
-      createdAt: new Date().toISOString(),
+      createdAt: now,
     }).select().single();
 
     if (error) throw error;
-    return res.json({ message: `Ping sent to ${bda.name}.`, notification: notif });
+
+    // Also notify the BDA's team lead
+    let tlNotif = null;
+    if (bda.teamId) {
+      const { data: tls } = await supabase
+        .from('users')
+        .select('id')
+        .eq('role', 'team_lead')
+        .eq('teamId', bda.teamId);
+
+      if (tls && tls.length > 0) {
+        const tlIds = tls.map(t => t.id);
+        const tlInserts = tlIds.map(tlId => ({
+          userId: tlId,
+          title: 'BDA Performance Alert',
+          body: `${bda.name} from your team has been flagged for low performance by ${req.user.name}.`,
+          type: 'warning',
+          createdAt: now,
+        }));
+        const { data: tlNotifs } = await supabase.from('notifications').insert(tlInserts).select();
+        tlNotif = tlNotifs;
+      }
+    }
+
+    return res.json({
+      message: `Ping sent to ${bda.name}${tlNotif ? ' and their Team Lead.' : '.'}`,
+      notification: notif,
+      tlNotification: tlNotif,
+    });
   } catch (error) {
     console.error('Ping BDA error:', error);
     return res.status(500).json({ message: 'Internal server error' });

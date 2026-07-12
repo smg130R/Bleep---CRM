@@ -6,6 +6,7 @@ import Toast from './components/Toast';
 import ComplaintModal from './components/ComplaintModal';
 import ProfileModal from './components/ProfileModal';
 import NotificationModal from './components/NotificationModal';
+import FloatingNotification from './components/FloatingNotification';
 import TutorialModal from './components/TutorialModal';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -137,6 +138,8 @@ const MainApp = () => {
         isOpen={isTutorialOpen}
         onClose={() => setIsTutorialOpen(false)}
       />
+
+      <FloatingNotification />
 
       <Toast 
         message={toastMessage}
