@@ -124,15 +124,34 @@ const Dashboard = ({ dateFilter, showToast }) => {
   const prevRate = stats.calls > 0 ? 0 : 0;
 
   const [detailCard, setDetailCard] = useState(null);
+  const [bdaCardStats, setBdaCardStats] = useState(null);
+
+  const handleCardClick = async (key) => {
+    setDetailCard(key);
+    // For TL: fetch per-BDA breakdown
+    if (isTL && (key === 'calls' || key === 'connects' || key === 'deals')) {
+      try {
+        const rangeMap = { 'Today': 'today', '7 Days': 'weekly', '30 Days': 'monthly' };
+        const range = rangeMap[dateFilter] || 'today';
+        const res = await fetch(`/api/kpi/team-members/${user.teamId}?range=${range}`);
+        if (res.ok) {
+          const data = await res.json();
+          setBdaCardStats(data.members || []);
+          return;
+        }
+      } catch (e) { /* ignore */ }
+    }
+    setBdaCardStats(null);
+  };
 
   const cardDetails = {
-    calls: { label: 'Total Calls', detail: isAdmin ? `Across all teams (${teams.length} teams)` : 'Your outbound calls', breakdown: isAdmin ? teams.map(t => ({ name: t.name, value: t.calls })) : null },
-    connects: { label: 'Total Connects', detail: 'Connected calls', breakdown: isAdmin ? teams.map(t => ({ name: t.name, value: t.connects })) : null },
+    calls: { label: 'Total Calls', detail: isAdmin ? `Across all teams (${teams.length} teams)` : isTL ? 'Per-BDA breakdown' : 'Your outbound calls', breakdown: isAdmin ? teams.map(t => ({ name: t.name, value: t.calls })) : isTL && bdaCardStats ? bdaCardStats.map(m => ({ name: m.name, value: m.mCalls + m.eCalls })) : null },
+    connects: { label: 'Total Connects', detail: 'Connected calls', breakdown: isAdmin ? teams.map(t => ({ name: t.name, value: t.connects })) : isTL && bdaCardStats ? bdaCardStats.map(m => ({ name: m.name, value: m.mConn + m.eConn })) : null },
     rate: { label: 'Connection Rate', detail: `${connRate}% — ${stats.connects} connects out of ${stats.calls} calls` },
     prospects: { label: 'Prospects', detail: `${stats.prospects} total prospects` },
     screenshots: { label: 'Screenshots', detail: `${stats.screenshots} screenshots taken` },
     sCalls: { label: 'Sales Calls', detail: `${stats.sCalls} sales calls` },
-    deals: { label: 'Deals Closed', detail: `${stats.deals} deals closed` },
+    deals: { label: 'Deals Closed', detail: isAdmin ? 'Across all teams' : isTL && bdaCardStats ? 'Per-BDA breakdown' : '', breakdown: isAdmin ? teams.map(t => ({ name: t.name, value: t.deals || 0 })) : isTL && bdaCardStats ? bdaCardStats.map(m => ({ name: m.name, value: m.deals || 0 })) : null },
   };
 
   const kpiCards = [
@@ -182,7 +201,7 @@ const Dashboard = ({ dateFilter, showToast }) => {
         )) : kpiCards.map(card => {
           const Icon = card.icon;
           return (
-            <div key={card.key} className={`kpi-card ${cardColor(card.key)}`} onClick={() => setDetailCard(card.key)} style={{ cursor: 'pointer', '--card-accent': 'var(--primary)' }}>
+            <div key={card.key} className={`kpi-card ${cardColor(card.key)}`} onClick={() => handleCardClick(card.key)} style={{ cursor: 'pointer', '--card-accent': 'var(--primary)' }}>
               <div className="kpi-card-header">
                 <span className="kpi-card-title">{card.label}</span>
                 <div className="kpi-card-icon"><Icon size={18} /></div>

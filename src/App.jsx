@@ -6,6 +6,7 @@ import Toast from './components/Toast';
 import ComplaintModal from './components/ComplaintModal';
 import ProfileModal from './components/ProfileModal';
 import NotificationModal from './components/NotificationModal';
+import TutorialModal from './components/TutorialModal';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import KpiBoard from './pages/KpiBoard';
@@ -27,6 +28,7 @@ const MainApp = () => {
   const [isComplaintModalOpen, setIsComplaintModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
   
   // Global Toast State
   const [toastMessage, setToastMessage] = useState('');
@@ -93,6 +95,7 @@ const MainApp = () => {
           onOpenProfile={() => setIsProfileModalOpen(true)}
           setSidebarOpen={setSidebarOpen}
           onOpenNotifications={() => setIsNotificationModalOpen(true)}
+          onOpenHelp={() => setIsTutorialOpen(true)}
         />
         <style>{'#menu-toggle-btn { display: none; } @media (max-width: 1024px) { #menu-toggle-btn { display: inline-flex !important; } }'}</style>
 
@@ -128,6 +131,11 @@ const MainApp = () => {
       <NotificationModal
         isOpen={isNotificationModalOpen}
         onClose={() => setIsNotificationModalOpen(false)}
+      />
+
+      <TutorialModal
+        isOpen={isTutorialOpen}
+        onClose={() => setIsTutorialOpen(false)}
       />
 
       <Toast 

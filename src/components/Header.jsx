@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Bell, HelpCircle, Menu, AlertCircle } from 'lucide-react';
 
@@ -25,8 +25,22 @@ const roleLabels = {
   team_lead: 'Team Lead', bda: 'BDA',
 };
 
-const Header = ({ activePage, dateFilter, setDateFilter, onOpenComplaintModal, setSidebarOpen, onOpenProfile, onOpenNotifications }) => {
+const Header = ({ activePage, dateFilter, setDateFilter, onOpenComplaintModal, setSidebarOpen, onOpenProfile, onOpenNotifications, onOpenHelp }) => {
   const { user } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnread = async () => {
+    try {
+      const res = await fetch('/api/notifications');
+      if (res.ok) {
+        const data = await res.json();
+        setUnreadCount(data.unread || 0);
+      }
+    } catch { /* ignore */ }
+  };
+
+  useEffect(() => { fetchUnread(); const i = setInterval(fetchUnread, 30000); return () => clearInterval(i); }, []);
+
   if (!user) return null;
 
   const info = titleMap[activePage] || { title: 'Bleep CRM', subtitle: '' };
@@ -61,9 +75,17 @@ const Header = ({ activePage, dateFilter, setDateFilter, onOpenComplaintModal, s
 
         <button className="header-icon-btn" title="Notifications" onClick={onOpenNotifications}>
           <Bell size={18} />
+          {unreadCount > 0 && (
+            <span style={{
+              position: 'absolute', top: 6, right: 6, minWidth: 16, height: 16,
+              borderRadius: 8, background: 'var(--danger)', color: '#fff',
+              fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center',
+              justifyContent: 'center', padding: '0 3px', border: '2px solid var(--bg-card)',
+            }}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+          )}
         </button>
 
-        <button className="header-icon-btn" title="Help" onClick={() => window.open('https://opencode.ai', '_blank')}>
+        <button className="header-icon-btn" title="Help" onClick={onOpenHelp}>
           <HelpCircle size={18} />
         </button>
 
