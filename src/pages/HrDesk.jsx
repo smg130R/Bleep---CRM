@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { Bar } from 'react-chartjs-2';
+import {
+  Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend
+} from 'chart.js';
 import {
   Calendar, Users, Briefcase, UserPlus, FileText, TrendingUp,
-  BookOpen, Clock, LogOut, ArrowUpDown,
+  BookOpen, Clock, LogOut, ArrowUpDown, ArrowLeft,
   Award, Megaphone, Shield, BarChart3, ClipboardList, Search,
   Plus, Check, X, Edit3, Save, Loader,
   Gift, Bell, Target, MessageSquare
 } from 'lucide-react';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const HR = ['admin', 'hr'];
 
@@ -37,6 +43,12 @@ const HrDesk = ({ showToast, activeHrTab = 'hr-planner' }) => {
   const [surveys, setSurveys] = useState([]);
   const [analytics, setAnalytics] = useState({});
   const [logs, setLogs] = useState([]);
+  const [hrTeams, setHrTeams] = useState([]);
+  const [hrSelectedTeam, setHrSelectedTeam] = useState(null);
+  const [hrMembers, setHrMembers] = useState([]);
+  const [hrTeamLoading, setHrTeamLoading] = useState(false);
+  const [hrMemberLoading, setHrMemberLoading] = useState(false);
+  const HR_TEAM_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#f97316', '#06b6d4', '#ec4899'];
   const [searchTerm, setSearchTerm] = useState('');
   const [editProfile, setEditProfile] = useState(null);
   const [showForm, setShowForm] = useState(null);
@@ -93,6 +105,24 @@ const HrDesk = ({ showToast, activeHrTab = 'hr-planner' }) => {
       if (!res.ok) { showToast(data.message || 'Error', true); return null; }
       return data;
     } catch (e) { showToast('Connection error', true); return null; }
+  };
+
+  const fetchHrTeams = async () => {
+    setHrTeamLoading(true);
+    try {
+      const res = await fetch('/api/kpi/teams-breakdown?range=today', { credentials: 'include' });
+      if (res.ok) setHrTeams((await res.json()).teams || []);
+    } catch (e) { console.error(e); }
+    finally { setHrTeamLoading(false); }
+  };
+
+  const fetchHrMembers = async (teamId) => {
+    setHrMemberLoading(true);
+    try {
+      const res = await fetch(`/api/kpi/team-members/${teamId}?range=today`, { credentials: 'include' });
+      if (res.ok) setHrMembers((await res.json()).members || []);
+    } catch (e) { console.error(e); }
+    finally { setHrMemberLoading(false); }
   };
 
   const empName = (id) => employees.find(e => e.id === id)?.name || '-';
@@ -434,6 +464,9 @@ const HrDesk = ({ showToast, activeHrTab = 'hr-planner' }) => {
   );
 
   // ─── ANALYTICS ──────────────────────────────
+  // eslint-disable-next-line
+  useEffect(() => { if (tab === 'analytics') fetchHrTeams(); }, [tab]);
+
   if (tab === 'analytics') return (
     <div className="view-section active">
       <div className="dashboard-grid" style={{gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))',gap:12,marginBottom:20}}>
@@ -449,6 +482,82 @@ const HrDesk = ({ showToast, activeHrTab = 'hr-planner' }) => {
           </div>
         ))}</div>
       </Section>
+
+      {/* Division Performance Chart */}
+      <div className="chart-card" style={{marginTop:20}}>
+        <div className="chart-header">
+          <h3>Division Performance</h3>
+          <span style={{fontSize:'0.75rem',color:'var(--text-muted)'}}>Click a team card to drill into BDAs</span>
+        </div>
+        <div className="chart-container" style={{height:280}}>
+          {hrTeamLoading ? (
+            <div style={{textAlign:'center',padding:'3rem',color:'var(--text-muted)'}}>Loading teams...</div>
+          ) : hrTeams.length ? (
+            <Bar data={{
+              labels: hrTeams.map(t => t.name),
+              datasets: [{label:'Calls',data:hrTeams.map(t => t.calls),backgroundColor:hrTeams.map((_,i) => HR_TEAM_COLORS[i%HR_TEAM_COLORS.length]),borderRadius:6}]
+            }} options={{
+              responsive:true,maintainAspectRatio:false,
+              plugins:{tooltip:{callbacks:{label:ctx=>`${ctx.raw} calls`}},legend:{display:false}},
+              scales:{y:{beginAtZero:true,grid:{color:'#F1F5F9'}},x:{grid:{display:false}}},
+            }} />
+          ) : (
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--text-muted)'}}>No data available</div>
+          )}
+        </div>
+        {hrTeams.length > 0 && (
+          <div style={{display:'flex',gap:'0.75rem',flexWrap:'wrap',padding:'0.75rem 1rem 1rem',borderTop:'1px solid var(--border)'}}>
+            {hrTeams.map((t,i) => (
+              <div key={t.id} onClick={() => { setHrSelectedTeam(t); fetchHrMembers(t.id); }} style={{
+                display:'flex',alignItems:'center',gap:'0.5rem',padding:'0.5rem 1rem',
+                borderRadius:'8px',background:HR_TEAM_COLORS[i%HR_TEAM_COLORS.length]+'15',
+                border:'1px solid '+HR_TEAM_COLORS[i%HR_TEAM_COLORS.length]+'30',
+                cursor:'pointer',transition:'all 0.15s',
+              }}>
+                <div style={{width:8,height:8,borderRadius:'50%',background:HR_TEAM_COLORS[i%HR_TEAM_COLORS.length]}} />
+                <div>
+                  <div style={{fontSize:13,fontWeight:600}}>{t.name}</div>
+                  <div style={{fontSize:11,color:'var(--text-muted)'}}>{t.calls} calls · {t.connects} conn</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Team Drill-down */}
+      {hrSelectedTeam && (
+        <div className="content-card" style={{padding:'1rem',marginTop:20}}>
+          <div style={{display:'flex',alignItems:'center',gap:'1rem',marginBottom:'1rem'}}>
+            <button className="btn btn-secondary" onClick={() => setHrSelectedTeam(null)} style={{display:'inline-flex',alignItems:'center',gap:'0.5rem'}}>
+              <ArrowLeft size={14} /> Back
+            </button>
+            <h3 style={{margin:0}}>{hrSelectedTeam.name} — BDA Breakdown</h3>
+          </div>
+          {hrMemberLoading ? (
+            <div style={{textAlign:'center',padding:'2rem',color:'var(--text-muted)'}}>Loading members...</div>
+          ) : hrMembers.length > 0 ? (
+            <div className="dashboard-grid" style={{gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))'}}>
+              {hrMembers.map(m => (
+                <div key={m.id} className="kpi-card blue">
+                  <div className="kpi-card-header">
+                    <span className="kpi-card-title">{m.name}</span>
+                    <Users size={18} />
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem',marginTop:'0.75rem'}}>
+                    <div><span style={{fontSize:'0.7rem',color:'var(--text-muted)'}}>Calls</span><div style={{fontSize:'1.1rem',fontWeight:700}}>{(m.mCalls||0)+(m.eCalls||0)}</div></div>
+                    <div><span style={{fontSize:'0.7rem',color:'var(--text-muted)'}}>Connects</span><div style={{fontSize:'1.1rem',fontWeight:700}}>{(m.mConn||0)+(m.eConn||0)}</div></div>
+                    <div><span style={{fontSize:'0.7rem',color:'var(--text-muted)'}}>Deals</span><div style={{fontSize:'1.1rem',fontWeight:700}}>{m.deals||0}</div></div>
+                    <div><span style={{fontSize:'0.7rem',color:'var(--text-muted)'}}>Score</span><div style={{fontSize:'1.1rem',fontWeight:700}}>{m.perfScore||0}</div></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{textAlign:'center',padding:'2rem',color:'var(--text-muted)'}}>No data for this team</div>
+          )}
+        </div>
+      )}
     </div>
   );
 
