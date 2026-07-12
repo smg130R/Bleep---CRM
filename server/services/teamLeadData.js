@@ -159,12 +159,27 @@ async function distributeLeads(teamId, assignedBy) {
   const bdas = await getPresentBdas(teamId);
   if (bdas.length === 0) return { distributed: 0, message: 'No active BDAs present today' };
 
+  // Filter out BDAs that already have uncompleted leads
+  const bdaIds = bdas.map(b => b.id);
+  const { data: pendingCounts } = await supabase
+    .from('calling_sheet')
+    .select('assignedUserId')
+    .in('assignedUserId', bdaIds)
+    .or('status.eq.,status.eq.Pending');
+
+  const busyBdaIds = new Set((pendingCounts || []).map(r => r.assignedUserId));
+  const availableBdas = bdas.filter(b => !busyBdaIds.has(b.id));
+
+  if (availableBdas.length === 0) {
+    return { distributed: 0, message: 'All BDAs have pending leads — complete them first.' };
+  }
+
   const today = new Date().toISOString().split('T')[0];
-  const perBda = Math.floor(unassigned.length / bdas.length);
-  let remainder = unassigned.length % bdas.length;
+  const perBda = Math.floor(unassigned.length / availableBdas.length);
+  let remainder = unassigned.length % availableBdas.length;
   let leadIdx = 0;
 
-  for (const bda of bdas) {
+  for (const bda of availableBdas) {
     const count = perBda + (remainder > 0 ? 1 : 0);
     if (remainder > 0) remainder--;
 
@@ -177,22 +192,25 @@ async function distributeLeads(teamId, assignedBy) {
     // Update leads status + assignee
     await supabase.from('leads').update({ status: 'assigned', currentAssigneeId: bda.id, updatedAt: today }).in('id', ids);
 
-    // Create calling_sheet rows
-    const sheetRows = batch.map(l => ({
-      assignedUserId: bda.id,
-      leadId: l.id,
-      customerName: l.customerName,
-      contact: l.contact,
-      whatsapp: l.whatsapp || '',
-      college: l.college,
-      branch: l.branch,
-      year: l.year,
-      status: '',
-      naCount: 0,
-      remarks: '',
-      lastUpdated: today,
-    }));
-    await supabase.from('calling_sheet').insert(sheetRows);
+    // Only create calling_sheet rows for first 50 per BDA; rest stay inactive
+    const activeBatch = batch.slice(0, 50);
+    if (activeBatch.length > 0) {
+      const sheetRows = activeBatch.map(l => ({
+        assignedUserId: bda.id,
+        leadId: l.id,
+        customerName: l.customerName,
+        contact: l.contact,
+        whatsapp: l.whatsapp || '',
+        college: l.college,
+        branch: l.branch,
+        year: l.year,
+        status: '',
+        naCount: 0,
+        remarks: '',
+        lastUpdated: today,
+      }));
+      await supabase.from('calling_sheet').insert(sheetRows);
+    }
 
     // Assignment records
     const assignRows = batch.map(l => ({
@@ -209,7 +227,7 @@ async function distributeLeads(teamId, assignedBy) {
   // Push to each BDA's Google Sheet
   try {
     const { pushBdaLeadsToSheet, extractSheetId } = require('./sheetsSync');
-    for (const bda of bdas) {
+    for (const bda of availableBdas) {
       const { data: user } = await supabase.from('users').select('"assignedSheetUrl", "assignedSheetTab"').eq('id', bda.id).single();
       if (user?.assignedSheetUrl) {
         const sid = extractSheetId(user.assignedSheetUrl);
@@ -229,9 +247,9 @@ async function distributeLeads(teamId, assignedBy) {
       const assignments = [];
       const needsRowMatch = []; // leads without sheetRow
       let tmpIdx = 0;
-      let tmpRemainder = unassigned.length % bdas.length;
-      const tmpPerBda = Math.floor(unassigned.length / bdas.length);
-      for (const bda of bdas) {
+      let tmpRemainder = unassigned.length % availableBdas.length;
+      const tmpPerBda = Math.floor(unassigned.length / availableBdas.length);
+      for (const bda of availableBdas) {
         const count = tmpPerBda + (tmpRemainder > 0 ? 1 : 0);
         if (tmpRemainder > 0) tmpRemainder--;
         const batch = unassigned.slice(tmpIdx, tmpIdx + count);
@@ -270,7 +288,7 @@ async function distributeLeads(teamId, assignedBy) {
     console.error('Master sheet update error (non-fatal):', masterErr.message);
   }
 
-  return { distributed: leadIdx, message: `Distributed ${leadIdx} leads to ${bdas.length} BDAs` };
+  return { distributed: leadIdx, message: `Distributed ${leadIdx} leads to ${availableBdas.length} BDAs (${bdas.length - availableBdas.length} skipped — have pending leads)` };
 }
 
 // ── NA Reassignment ──

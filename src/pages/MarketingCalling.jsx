@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Download, Filter, RefreshCw, Clock, AlertCircle, CheckCircle, PhoneOff, Phone, XCircle, Ban, Mail, Image, Loader } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Download, Filter, RefreshCw, Clock, AlertCircle, CheckCircle, PhoneOff, Phone, XCircle, Ban, Mail, Image, Loader, Search } from 'lucide-react';
 
 const statusColors = {
   '': '#f1f5f9',
@@ -63,6 +63,7 @@ const MarketingCalling = ({ showToast }) => {
   const [resizing, setResizing] = useState(null);
   const [dragCol, setDragCol] = useState(null);
   const [dropTarget, setDropTarget] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchCallingSheet = async () => {
     try {
@@ -177,8 +178,20 @@ const MarketingCalling = ({ showToast }) => {
     }
   };
 
-  const filtered = tab === 'all' ? callingData : callingData.filter(r => !r.status || r.status === 'Pending');
+  const searched = useMemo(() => {
+    if (!searchTerm.trim()) return callingData;
+    const q = searchTerm.toLowerCase();
+    return callingData.filter(r =>
+      (r.customerName || '').toLowerCase().includes(q) ||
+      (r.contact || '').includes(q) ||
+      (r.college || '').toLowerCase().includes(q) ||
+      (r.branch || '').toLowerCase().includes(q) ||
+      (r.remarks || '').toLowerCase().includes(q)
+    );
+  }, [callingData, searchTerm]);
+  const filtered = tab === 'all' ? searched : searched.filter(r => !r.status || r.status === 'Pending');
   const pendingCount = callingData.filter(r => !r.status || r.status === 'Pending').length;
+  const hasPending = pendingCount > 0;
   const today = new Date().toISOString().split('T')[0];
 
   // Column resize
@@ -547,71 +560,96 @@ const MarketingCalling = ({ showToast }) => {
   return (
     <div className="view-section active" id="marketing-calling-view">
       <div className="content-card" style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button
-              className={`btn ${tab === 'pending' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setTab('pending')}
-              style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', position: 'relative' }}
-            >
-              Pending
-              <span style={{
-                background: tab === 'pending' ? 'rgba(255,255,255,0.25)' : 'var(--border)',
-                borderRadius: '999px',
-                padding: '0.1rem 0.45rem',
-                fontSize: '0.65rem',
-                marginLeft: '0.35rem',
-                fontWeight: 700,
-              }}>
-                {pendingCount}
-              </span>
-            </button>
-            <button
-              className={`btn ${tab === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setTab('all')}
-              style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
-            >
-              All
-              <span style={{
-                background: tab === 'all' ? 'rgba(255,255,255,0.25)' : 'var(--border)',
-                borderRadius: '999px',
-                padding: '0.1rem 0.45rem',
-                fontSize: '0.65rem',
-                marginLeft: '0.35rem',
-                fontWeight: 700,
-              }}>
-                {callingData.length}
-              </span>
-            </button>
-            <button
-              className={`btn ${tab === 'follow-ups' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setTab('follow-ups')}
-              style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
-            >
-              <Clock size={12} style={{ marginRight: '0.25rem' }} /> Follow-ups
-              {followUps.filter(f => f.followUpDate < today).length > 0 && (
+        <div style={{ display: 'flex', gap: '0.75rem', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <button
+                className={`btn ${tab === 'pending' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setTab('pending')}
+                style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', position: 'relative' }}
+              >
+                Pending
                 <span style={{
-                  background: '#ef4444',
-                  color: '#fff',
+                  background: tab === 'pending' ? 'rgba(255,255,255,0.25)' : 'var(--border)',
                   borderRadius: '999px',
-                  padding: '0.1rem 0.4rem',
-                  fontSize: '0.6rem',
+                  padding: '0.1rem 0.45rem',
+                  fontSize: '0.65rem',
                   marginLeft: '0.35rem',
                   fontWeight: 700,
                 }}>
-                  {followUps.filter(f => f.followUpDate < today).length}
+                  {pendingCount}
                 </span>
-              )}
-            </button>
-            <div style={{ width: '1px', height: '24px', background: 'var(--border)', margin: '0 0.25rem' }} />
-            <button className="btn btn-secondary" onClick={fixData} disabled={fixing} style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}>
-              <RefreshCw size={12} className={fixing ? 'animate-spin' : ''} /> {fixing ? 'Fixing...' : 'Fix'}
-            </button>
+              </button>
+              <button
+                className={`btn ${tab === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setTab('all')}
+                style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
+              >
+                All
+                <span style={{
+                  background: tab === 'all' ? 'rgba(255,255,255,0.25)' : 'var(--border)',
+                  borderRadius: '999px',
+                  padding: '0.1rem 0.45rem',
+                  fontSize: '0.65rem',
+                  marginLeft: '0.35rem',
+                  fontWeight: 700,
+                }}>
+                  {callingData.length}
+                </span>
+              </button>
+              <button
+                className={`btn ${tab === 'follow-ups' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setTab('follow-ups')}
+                style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
+              >
+                <Clock size={12} style={{ marginRight: '0.25rem' }} /> Follow-ups
+                {followUps.filter(f => f.followUpDate < today).length > 0 && (
+                  <span style={{
+                    background: '#ef4444',
+                    color: '#fff',
+                    borderRadius: '999px',
+                    padding: '0.1rem 0.4rem',
+                    fontSize: '0.6rem',
+                    marginLeft: '0.35rem',
+                    fontWeight: 700,
+                  }}>
+                    {followUps.filter(f => f.followUpDate < today).length}
+                  </span>
+                )}
+              </button>
+              <div style={{ width: '1px', height: '24px', background: 'var(--border)', margin: '0 0.25rem' }} />
+              <button className="btn btn-secondary" onClick={fixData} disabled={fixing} style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}>
+                <RefreshCw size={12} className={fixing ? 'animate-spin' : ''} /> {fixing ? 'Fixing...' : 'Fix'}
+              </button>
+            </div>
+            {tab !== 'follow-ups' && (
+              <button
+                className="btn btn-primary"
+                onClick={fetchLeads}
+                disabled={fetching || hasPending}
+                title={hasPending ? 'Complete pending leads first' : 'Fetch 50 new leads'}
+                style={{ fontSize: '0.85rem' }}
+              >
+                <Download size={14} /> {fetching ? 'Fetching...' : hasPending ? `${pendingCount} Pending` : 'Fetch 50 Leads'}
+              </button>
+            )}
           </div>
           {tab !== 'follow-ups' && (
-            <button className="btn btn-primary" onClick={fetchLeads} disabled={fetching} style={{ fontSize: '0.85rem' }}>
-              <Download size={14} /> {fetching ? 'Fetching...' : 'Fetch 50 Leads'}
-            </button>
+            <div style={{ position: 'relative' }}>
+              <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                placeholder="Search by name, contact, college, branch or remarks..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{
+                  width: '100%', padding: '0.5rem 0.5rem 0.5rem 2rem', border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-md)', fontSize: '0.8rem', outline: 'none',
+                  background: 'var(--bg-main)', color: 'var(--text-primary)', fontFamily: 'var(--font-family)',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
           )}
         </div>
       </div>

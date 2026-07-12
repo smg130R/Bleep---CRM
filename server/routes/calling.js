@@ -351,7 +351,7 @@ router.patch('/:id', authenticateToken, requireRoles(['bda']), async (req, res) 
   }
 });
 
-// POST /api/calling/fetch-leads - BDA fetches 50 unassigned leads from the team pool
+// POST /api/calling/fetch-leads - BDA fetches next batch (up to 50) from assigned pool or team pool
 router.post('/fetch-leads', authenticateToken, requireRoles(['bda']), async (req, res) => {
   try {
     const bdaId = req.user.id;
@@ -361,98 +361,172 @@ router.post('/fetch-leads', authenticateToken, requireRoles(['bda']), async (req
       return res.status(400).json({ message: 'You are not assigned to a team.' });
     }
 
-    const { data: unassigned, error: fetchError } = await supabase
+    const today = new Date().toISOString().split('T')[0];
+
+    // 1. Delete completed calling_sheet entries (status not blank and not Pending)
+    const { data: completed, error: delErr } = await supabase
+      .from('calling_sheet')
+      .select('id')
+      .eq('assignedUserId', bdaId)
+      .not('status', 'in', '("","Pending")');
+    if (delErr) throw delErr;
+    const completedIds = (completed || []).map(r => r.id);
+    if (completedIds.length > 0) {
+      await supabase.from('calling_sheet').delete().in('id', completedIds);
+    }
+
+    // 2. Count remaining active (blank/Pending) calling sheet entries
+    const { data: activeEntries } = await supabase
+      .from('calling_sheet')
+      .select('id')
+      .eq('assignedUserId', bdaId)
+      .or('status.eq.,status.eq.Pending');
+    const activeCount = (activeEntries || []).length;
+
+    if (activeCount >= 50) {
+      return res.status(400).json({ message: `You already have ${activeCount} active leads. Complete them first.`, count: 0 });
+    }
+
+    const slotsLeft = 50 - activeCount;
+    let activated = 0;
+
+    // 3. Try to activate "inactive" assigned leads (leads assigned to BDA but not yet in calling_sheet)
+    const { data: inactiveLeads } = await supabase
       .from('leads')
       .select('*')
       .eq('teamId', teamId)
-      .eq('status', 'unassigned')
-      .order('id')
-      .limit(50);
+      .eq('currentAssigneeId', bdaId)
+      .eq('status', 'assigned');
 
-    if (fetchError) throw fetchError;
-    if (!unassigned || unassigned.length === 0) {
-      return res.json({ message: 'No new leads available right now.', count: 0 });
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-    const leadIds = unassigned.map(l => l.id);
-
-    const { error: updateError } = await supabase
-      .from('leads')
-      .update({ status: 'assigned', currentAssigneeId: bdaId, updatedAt: today })
-      .in('id', leadIds);
-
-    if (updateError) throw updateError;
-
-    // Clean up swapped fields before inserting into calling_sheet
-    const cleanLeads = unassigned.map(lead => smartCleanRow(lead));
-
-    const callingEntries = cleanLeads.map(lead => ({
-      assignedUserId: bdaId,
-      leadId: lead.id,
-      customerName: lead.customerName,
-      contact: lead.contact,
-      whatsapp: lead.whatsapp || '',
-      college: lead.college || '',
-      branch: lead.branch || '',
-      year: lead.year || '',
-      status: '',
-      naCount: lead.naCount || 0,
-      remarks: '',
-      lastUpdated: today,
-    }));
-
-    const { error: insertError } = await supabase
-      .from('calling_sheet')
-      .insert(callingEntries);
-
-    if (insertError) throw insertError;
-
-    // Update master sheet marking these leads as assigned
-    try {
-      const { data: team } = await supabase.from('teams').select('"masterSheetUrl"').eq('id', teamId).single();
-      if (team?.masterSheetUrl) {
-        const { extractSheetId, updateMasterSheetAssignments, importLeadsFromMasterSheet } = require('../services/sheetsSync');
-        const sheetId = extractSheetId(team.masterSheetUrl);
-        const bdaName = req.user.name || `BDA ${req.user.id}`;
-        const assignments = [];
-        const needsRowMatch = [];
-        for (const l of cleanLeads) {
-          if (l.sheetRow) {
-            assignments.push({ bdaName, sheetRow: l.sheetRow });
-          } else {
-            needsRowMatch.push(l);
-          }
-        }
-        if (needsRowMatch.length > 0) {
-          const sheetLeads = await importLeadsFromMasterSheet(sheetId);
-          const contactToRow = {};
-          for (const sl of sheetLeads) {
-            if (sl.sheetRow) {
-              const key = (sl.contact || '').replace(/\D/g, '');
-              if (key) contactToRow[key] = sl.sheetRow;
-            }
-          }
-          for (const l of needsRowMatch) {
-            const key = (l.contact || '').replace(/\D/g, '');
-            if (contactToRow[key]) {
-              assignments.push({ bdaName, sheetRow: contactToRow[key] });
-            }
-          }
-        }
-        if (assignments.length > 0) {
-          await updateMasterSheetAssignments(sheetId, 'Sheet1', assignments);
-          await supabase.from('leads').update({ assignedInMaster: true }).in('id', leadIds);
+    // Filter: those without a calling_sheet entry for this BDA
+    const inactiveToActivate = [];
+    if (inactiveLeads && inactiveLeads.length > 0) {
+      const inactiveLeadIds = inactiveLeads.map(l => l.id);
+      const { data: existingSheet } = await supabase
+        .from('calling_sheet')
+        .select('leadId')
+        .eq('assignedUserId', bdaId)
+        .in('leadId', inactiveLeadIds);
+      const existingSet = new Set((existingSheet || []).map(r => r.leadId));
+      for (const lead of inactiveLeads) {
+        if (!existingSet.has(lead.id) && inactiveToActivate.length < slotsLeft) {
+          inactiveToActivate.push(lead);
         }
       }
-    } catch (masterErr) {
-      console.error('Master sheet update error (non-fatal):', masterErr.message);
     }
 
-    return res.json({
-      message: `Fetched ${unassigned.length} new leads.`,
-      count: unassigned.length,
-    });
+    if (inactiveToActivate.length > 0) {
+      const sheetRows = inactiveToActivate.map(lead => ({
+        assignedUserId: bdaId,
+        leadId: lead.id,
+        customerName: lead.customerName,
+        contact: lead.contact,
+        whatsapp: lead.whatsapp || '',
+        college: lead.college || '',
+        branch: lead.branch || '',
+        year: lead.year || '',
+        status: '',
+        naCount: lead.naCount || 0,
+        remarks: '',
+        lastUpdated: today,
+      }));
+      await supabase.from('calling_sheet').insert(sheetRows);
+      activated += inactiveToActivate.length;
+    }
+
+    // 4. If still have slots, fetch new from unassigned pool
+    let fetchedFromPool = 0;
+    const remainingSlots = slotsLeft - activated;
+
+    if (remainingSlots > 0) {
+      const { data: unassigned, error: fetchError } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('teamId', teamId)
+        .eq('status', 'unassigned')
+        .order('id')
+        .limit(remainingSlots);
+
+      if (!fetchError && unassigned && unassigned.length > 0) {
+        const leadIds = unassigned.map(l => l.id);
+
+        await supabase.from('leads').update({ status: 'assigned', currentAssigneeId: bdaId, updatedAt: today }).in('id', leadIds);
+
+        const cleanLeads = unassigned.map(lead => smartCleanRow(lead));
+
+        const callingEntries = cleanLeads.map(lead => ({
+          assignedUserId: bdaId,
+          leadId: lead.id,
+          customerName: lead.customerName,
+          contact: lead.contact,
+          whatsapp: lead.whatsapp || '',
+          college: lead.college || '',
+          branch: lead.branch || '',
+          year: lead.year || '',
+          status: '',
+          naCount: lead.naCount || 0,
+          remarks: '',
+          lastUpdated: today,
+        }));
+
+        await supabase.from('calling_sheet').insert(callingEntries);
+        fetchedFromPool = unassigned.length;
+
+        // Update master sheet
+        try {
+          const { data: team } = await supabase.from('teams').select('"masterSheetUrl"').eq('id', teamId).single();
+          if (team?.masterSheetUrl) {
+            const { extractSheetId, updateMasterSheetAssignments, importLeadsFromMasterSheet } = require('../services/sheetsSync');
+            const sheetId = extractSheetId(team.masterSheetUrl);
+            const bdaName = req.user.name || `BDA ${req.user.id}`;
+            const assignments = [];
+            const needsRowMatch = [];
+            for (const l of cleanLeads) {
+              if (l.sheetRow) {
+                assignments.push({ bdaName, sheetRow: l.sheetRow });
+              } else {
+                needsRowMatch.push(l);
+              }
+            }
+            if (needsRowMatch.length > 0) {
+              const sheetLeads = await importLeadsFromMasterSheet(sheetId);
+              const contactToRow = {};
+              for (const sl of sheetLeads) {
+                if (sl.sheetRow) {
+                  const key = (sl.contact || '').replace(/\D/g, '');
+                  if (key) contactToRow[key] = sl.sheetRow;
+                }
+              }
+              for (const l of needsRowMatch) {
+                const key = (l.contact || '').replace(/\D/g, '');
+                if (contactToRow[key]) {
+                  assignments.push({ bdaName, sheetRow: contactToRow[key] });
+                }
+              }
+            }
+            if (assignments.length > 0) {
+              await updateMasterSheetAssignments(sheetId, 'Sheet1', assignments);
+              await supabase.from('leads').update({ assignedInMaster: true }).in('id', leadIds);
+            }
+          }
+        } catch (masterErr) {
+          console.error('Master sheet update error (non-fatal):', masterErr.message);
+        }
+      }
+    }
+
+    const totalActivated = activated + fetchedFromPool;
+
+    let msg;
+    if (fetchedFromPool > 0) {
+      msg = `Activated ${activated} inactive lead(s) + fetched ${fetchedFromPool} new lead(s).`;
+    } else if (activated > 0) {
+      msg = `Activated ${activated} lead(s) from your assigned pool.`;
+    } else {
+      msg = 'No new leads available right now.';
+    }
+
+    return res.json({ message: msg, count: totalActivated });
   } catch (error) {
     console.error('Fetch leads error:', error);
     return res.status(500).json({ message: 'Error fetching leads: ' + error.message });

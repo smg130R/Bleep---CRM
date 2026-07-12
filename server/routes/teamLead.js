@@ -167,6 +167,135 @@ router.post('/reassign-na', authenticateToken, requireRoles(['team_lead', 'admin
   }
 });
 
+// POST /api/team-lead/assign-selected - Manually assign selected leads to a specific BDA
+router.post('/assign-selected', authenticateToken, requireRoles(['team_lead', 'admin']), async (req, res) => {
+  try {
+    const teamId = req.user.teamId;
+    if (!teamId) return res.status(400).json({ message: 'You are not assigned to a team.' });
+
+    const { leadIds, bdaId } = req.body;
+    if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
+      return res.status(400).json({ message: 'Select at least one lead to assign.' });
+    }
+    if (!bdaId) {
+      return res.status(400).json({ message: 'Select a BDA to assign to.' });
+    }
+
+    // Verify BDA exists and belongs to the team
+    const { data: bda } = await supabase.from('users').select('id, name').eq('id', bdaId).eq('teamId', teamId).eq('role', 'bda').single();
+    if (!bda) {
+      return res.status(400).json({ message: 'Invalid BDA selected.' });
+    }
+
+    // Verify leads belong to the team and are unassigned
+    const { data: leads } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('teamId', teamId)
+      .eq('status', 'unassigned')
+      .in('id', leadIds);
+
+    if (!leads || leads.length === 0) {
+      return res.status(400).json({ message: 'No valid unassigned leads found for the selected IDs.' });
+    }
+
+    const validIds = leads.map(l => l.id);
+    const today = new Date().toISOString().split('T')[0];
+
+    // Update leads
+    await supabase.from('leads').update({ status: 'assigned', currentAssigneeId: bdaId, updatedAt: today }).in('id', validIds);
+
+    // Count how many active calling_sheet entries the BDA already has
+    const { data: activeEntries } = await supabase
+      .from('calling_sheet')
+      .select('id')
+      .eq('assignedUserId', bdaId)
+      .or('status.eq.,status.eq.Pending');
+    const activeCount = (activeEntries || []).length;
+    const slotAvailable = Math.max(0, 50 - activeCount);
+
+    // Only create calling_sheet rows up to the available slot
+    const toActivate = slotAvailable > 0 ? leads.slice(0, slotAvailable) : [];
+
+    // The rest stay assigned but inactive
+    if (toActivate.length < leads.length) {
+      const inactiveIds = leads.slice(toActivate.length).map(l => l.id);
+      // They stay with status='assigned' in leads table
+      if (inactiveIds.length > 0) {
+        console.log(`BDA ${bdaId}: ${inactiveIds.length} leads kept inactive (no calling_sheet yet)`);
+      }
+    }
+
+    if (toActivate.length > 0) {
+      const sheetRows = toActivate.map(l => ({
+        assignedUserId: bdaId,
+        leadId: l.id,
+        customerName: l.customerName,
+        contact: l.contact,
+        whatsapp: l.whatsapp || '',
+        college: l.college,
+        branch: l.branch,
+        year: l.year,
+        status: '',
+        naCount: l.naCount || 0,
+        remarks: '',
+        lastUpdated: today,
+      }));
+      await supabase.from('calling_sheet').insert(sheetRows);
+    }
+
+    // Assignment records
+    const assignRows = leads.map(l => ({
+      leadId: l.id,
+      assignedTo: bdaId,
+      assignedBy: req.user.id,
+      assignedDate: today,
+      status: null,
+      remarks: '',
+    }));
+    await supabase.from('lead_assignments').insert(assignRows);
+
+    // Update master sheet
+    try {
+      const masterSheetUrl = await teamLeadData.getMasterSheetUrl(teamId);
+      if (masterSheetUrl) {
+        const { extractSheetId, updateMasterSheetAssignments } = require('../services/sheetsSync');
+        const sheetId = extractSheetId(masterSheetUrl);
+        const assignments = leads.filter(l => l.sheetRow).map(l => ({ bdaName: bda.name, sheetRow: l.sheetRow }));
+        const needsRowMatch = leads.filter(l => !l.sheetRow);
+        if (needsRowMatch.length > 0) {
+          const { importLeadsFromMasterSheet } = require('../services/sheetsSync');
+          const sheetLeads = await importLeadsFromMasterSheet(sheetId);
+          const contactToRow = {};
+          for (const sl of sheetLeads) {
+            if (sl.sheetRow) {
+              const key = (sl.contact || '').replace(/\D/g, '');
+              if (key) contactToRow[key] = sl.sheetRow;
+            }
+          }
+          for (const l of needsRowMatch) {
+            const key = (l.contact || '').replace(/\D/g, '');
+            if (contactToRow[key]) {
+              assignments.push({ bdaName: bda.name, sheetRow: contactToRow[key] });
+            }
+          }
+        }
+        if (assignments.length > 0) {
+          await updateMasterSheetAssignments(sheetId, 'Sheet1', assignments);
+        }
+        await supabase.from('leads').update({ assignedInMaster: true }).in('id', validIds);
+      }
+    } catch (masterErr) {
+      console.error('Master sheet update error (non-fatal):', masterErr.message);
+    }
+
+    return res.json({ message: `Assigned ${validIds.length} lead(s) to ${bda.name}.`, count: validIds.length });
+  } catch (error) {
+    console.error('Assign selected leads error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // GET /api/team-lead/assignments - Get assignment history
 router.get('/assignments', authenticateToken, requireRoles(['team_lead', 'admin']), async (req, res) => {
   try {

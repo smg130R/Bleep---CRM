@@ -20,6 +20,52 @@ const TeamLeadWorkspace = ({ showToast }) => {
   const [removingId, setRemovingId] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const lastClickedId = useRef(null);
+  const [selectedLeadIds, setSelectedLeadIds] = useState(new Set());
+  const [assignTargetBda, setAssignTargetBda] = useState('');
+  const [assigningSelected, setAssigningSelected] = useState(false);
+
+  const toggleLeadSelect = (id) => {
+    setSelectedLeadIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllLeads = () => {
+    const unassigned = leads.filter(l => l.status === 'unassigned');
+    if (selectedLeadIds.size === unassigned.length) {
+      setSelectedLeadIds(new Set());
+    } else {
+      setSelectedLeadIds(new Set(unassigned.map(l => l.id)));
+    }
+  };
+
+  const handleAssignSelected = async () => {
+    if (selectedLeadIds.size === 0 || !assignTargetBda) return;
+    setAssigningSelected(true);
+    try {
+      const res = await fetch('/api/team-lead/assign-selected', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadIds: [...selectedLeadIds], bdaId: Number(assignTargetBda) }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message);
+        setSelectedLeadIds(new Set());
+        setAssignTargetBda('');
+        await Promise.all([fetchLeads(), fetchAssignments(), fetchBdas()]);
+      } else {
+        showToast(data.message || 'Assignment failed', true);
+      }
+    } catch (err) {
+      showToast('Connection error', true);
+    } finally {
+      setAssigningSelected(false);
+    }
+  };
 
   const toggleSelect = (id, event) => {
     setSelectedIds(prev => {
@@ -418,44 +464,104 @@ const TeamLeadWorkspace = ({ showToast }) => {
         </div>
 
         {tab === 'leads' && (
-          <div className="table-responsive">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Customer</th>
-                  <th>Contact</th>
-                  <th>College</th>
-                  <th>Status</th>
-                  <th>NA Count</th>
-                  <th>Assignee</th>
-                  <th>Assigned</th>
-                  <th>Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leads.length === 0 ? (
+          <>
+            {leads.filter(l => l.status === 'unassigned').length > 0 && bdas.length > 0 && (
+              <div style={{
+                display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap',
+                padding: '0.75rem 1rem', borderBottom: '1px solid var(--border)',
+                background: 'var(--bg-main)',
+              }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                  Manual Assign:
+                </span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                  {selectedLeadIds.size} selected
+                </span>
+                <select
+                  value={assignTargetBda}
+                  onChange={(e) => setAssignTargetBda(e.target.value)}
+                  style={{
+                    padding: '0.35rem 0.5rem', border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)', fontSize: '0.8rem',
+                    background: 'var(--bg-card)', color: 'var(--text-primary)',
+                  }}
+                >
+                  <option value="">— Select BDA —</option>
+                  {bdas.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleAssignSelected}
+                  disabled={assigningSelected || selectedLeadIds.size === 0 || !assignTargetBda}
+                  style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', whiteSpace: 'nowrap' }}
+                >
+                  {assigningSelected ? 'Assigning...' : 'Assign Selected'}
+                </button>
+              </div>
+            )}
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
                   <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                      No leads yet. Import from master sheet or add manually.
-                    </td>
+                    <th style={{ width: 40 }}>
+                      {leads.filter(l => l.status === 'unassigned').length > 0 && (
+                        <input
+                          type="checkbox"
+                          checked={selectedLeadIds.size === leads.filter(l => l.status === 'unassigned').length && leads.filter(l => l.status === 'unassigned').length > 0}
+                          onChange={selectAllLeads}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      )}
+                    </th>
+                    <th>Customer</th>
+                    <th>Contact</th>
+                    <th>College</th>
+                    <th>Status</th>
+                    <th>NA Count</th>
+                    <th>Assignee</th>
+                    <th>Assigned</th>
+                    <th>Created</th>
                   </tr>
-                ) : (
-                  leads.map(lead => (
-                    <tr key={lead.id}>
-                      <td style={{ fontWeight: 600 }}>{lead.customerName}</td>
-                      <td><a href={`tel:${lead.contact}`} style={{ color: 'var(--accent-blue)' }}>{lead.contact}</a></td>
-                      <td>{lead.college}</td>
-                      <td><span style={statusBadge(lead.status)}>{lead.status}</span></td>
-                      <td>{lead.naCount}</td>
-                      <td>{lead.assigneeName || '-'}</td>
-                      <td>{lead.assignedInMaster ? 'Yes' : 'No'}</td>
-                      <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{lead.createdAt}</td>
+                </thead>
+                <tbody>
+                  {leads.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                        No leads yet. Import from master sheet or add manually.
+                      </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ) : (
+                    leads.map(lead => (
+                      <tr key={lead.id} style={{
+                        background: selectedLeadIds.has(lead.id) ? 'var(--primary-light)' : undefined,
+                      }}>
+                        <td>
+                          {lead.status === 'unassigned' && (
+                            <input
+                              type="checkbox"
+                              checked={selectedLeadIds.has(lead.id)}
+                              onChange={() => toggleLeadSelect(lead.id)}
+                              style={{ cursor: 'pointer' }}
+                            />
+                          )}
+                        </td>
+                        <td style={{ fontWeight: 600 }}>{lead.customerName}</td>
+                        <td><a href={`tel:${lead.contact}`} style={{ color: 'var(--accent-blue)' }}>{lead.contact}</a></td>
+                        <td>{lead.college}</td>
+                        <td><span style={statusBadge(lead.status)}>{lead.status}</span></td>
+                        <td>{lead.naCount}</td>
+                        <td>{lead.assigneeName || '-'}</td>
+                        <td>{lead.assignedInMaster ? 'Yes' : 'No'}</td>
+                        <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{lead.createdAt}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         {tab === 'assignments' && (
