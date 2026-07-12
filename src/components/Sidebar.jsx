@@ -17,8 +17,7 @@ const menuItems = [
   { id: 'prospects', name: 'Prospects', icon: Target },
   { id: 'follow-ups', name: 'Follow-ups', icon: CalendarDays },
   { id: 'reports', name: 'Reports', icon: BarChart3 },
-  // HR section (9 items total)
-  { id: 'hr-desk', name: 'HR Dashboard', icon: ShieldAlert },
+  // HR section
   { id: 'hr-planner', name: 'HR Planner', icon: CalendarDays },
   { id: 'hr-recruitment', name: 'Recruitment', icon: Briefcase },
   { id: 'hr-documents', name: 'Documents', icon: FileText },
@@ -31,7 +30,7 @@ const menuItems = [
 const permissions = {
   admin: [
     'dashboard','kpi-board','team-structure','employee-master','reports',
-    'hr-desk','hr-planner','hr-recruitment','hr-documents','hr-attendance',
+    'hr-planner','hr-recruitment','hr-documents','hr-attendance',
     'hr-announcements','hr-policies','settings',
     'marketing-calling','prospects','follow-ups','team-lead-workspace',
   ],
@@ -41,7 +40,7 @@ const permissions = {
   ],
   hr: [
     'dashboard','employee-master',
-    'hr-desk','hr-planner','hr-recruitment','hr-documents','hr-attendance',
+    'hr-planner','hr-recruitment','hr-documents','hr-attendance',
     'hr-announcements','hr-policies','settings',
   ],
   team_lead: [
@@ -70,8 +69,6 @@ const Sidebar = ({ activePage, setActivePage, sidebarOpen, setSidebarOpen }) => 
   const meta = roleMeta[user.role] || { title: user.role, color: '#6B7280', avatar: user.role.slice(0,2).toUpperCase() };
   const allowed = permissions[user.role] || ['dashboard'];
 
-  const isHrPage = activePage?.startsWith('hr-');
-
   return (
     <>
       {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
@@ -86,7 +83,7 @@ const Sidebar = ({ activePage, setActivePage, sidebarOpen, setSidebarOpen }) => 
             if (!allowed.includes(item.id)) return null;
             const Icon = item.icon;
             const isHrGroup = item.id.startsWith('hr-');
-            const active = item.id === activePage || (isHrPage && isHrGroup && item.id === 'hr-desk' && activePage === 'hr-desk');
+            const active = item.id === activePage;
             return (
               <button
                 key={item.id}

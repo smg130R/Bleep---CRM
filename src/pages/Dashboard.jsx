@@ -9,7 +9,8 @@ import {
   Phone, PhoneIncoming, UserPlus, ShoppingBag, CreditCard,
   AlertTriangle, TrendingUp, DollarSign, Users, Image, Loader,
   BarChart3, Calendar, Clock, Activity, Target, ArrowUpRight,
-  ArrowDownRight, RefreshCw, Download, Filter, ArrowLeft, X
+  ArrowDownRight, RefreshCw, Download, Filter, ArrowLeft, X,
+  Gift, Bell, FileText, BookOpen, LogOut, ClipboardList, Megaphone
 } from 'lucide-react';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler);
@@ -38,6 +39,8 @@ const Dashboard = ({ dateFilter, showToast }) => {
   const [loading, setLoading] = useState(true);
   const [payStats, setPayStats] = useState({ total: 0, slotBookingCount: 0, totalSlotAmount: 0, totalCollected: 0, totalOutstanding: 0 });
   const [unassignedCount, setUnassignedCount] = useState(0);
+  const [hrNotices, setHrNotices] = useState([]);
+  const [hrEvents, setHrEvents] = useState([]);
   const [teams, setTeams] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [members, setMembers] = useState([]);
@@ -91,6 +94,15 @@ const Dashboard = ({ dateFilter, showToast }) => {
       if (lbRes.ok) { const d = await lbRes.json(); setLowPerf((d.leaderboard || []).filter(b => b.perfScore < 40)); }
       if (psRes.ok) { setPayStats(await psRes.json()); }
       if (ucRes.ok) { const d = await ucRes.json(); setUnassignedCount(d.count || 0); }
+      // HR notices & events (admin/hr only)
+      if (isAdmin) {
+        const [nRes, eRes] = await Promise.all([
+          fetch('/api/hr/notices', { credentials: 'include' }),
+          fetch('/api/hr/planner', { credentials: 'include' }),
+        ]);
+        if (nRes.ok) { const nd = await nRes.json(); setHrNotices(nd.notices || []); }
+        if (eRes.ok) { const ed = await eRes.json(); setHrEvents(ed.events || []); }
+      }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -374,6 +386,58 @@ const Dashboard = ({ dateFilter, showToast }) => {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* HR Notices & Events (admin/hr only) */}
+      {isAdmin && (hrNotices.length > 0 || hrEvents.length > 0) && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          <div className="content-card" style={{ padding: '1rem' }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 0.75rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Megaphone size={16} /> Upcoming Notices & Reminders
+            </h3>
+            {hrNotices.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: 13, padding: 12 }}>No upcoming notices.</p>
+            ) : (
+              <div style={{ maxHeight: 340, overflow: 'auto' }}>
+                {hrNotices.slice(0, 25).map((n, i) => {
+                  const priColor = n.priority === 'urgent' ? '#DC2626' : n.priority === 'high' ? '#D97706' : '#6B7280';
+                  const priBg = n.priority === 'urgent' ? '#FEE2E2' : n.priority === 'high' ? '#FEF3C7' : '#F3F4F6';
+                  return (
+                    <div key={i} style={{ display: 'flex', gap: 10, padding: '7px 0', borderBottom: '1px solid var(--border-color)' }}>
+                      <div style={{ color: priColor, flexShrink: 0, marginTop: 2 }}>
+                        {n.type === 'birthday' ? <Gift size={14} /> : n.type === 'probation_end' ? <ClipboardList size={14} /> :
+                         n.type === 'document_expiry' ? <FileText size={14} /> : n.type === 'training_expiry' ? <BookOpen size={14} /> :
+                         n.type === 'event' ? <Calendar size={14} /> : n.type === 'exit' ? <LogOut size={14} /> :
+                         n.type === 'review' ? <TrendingUp size={14} /> : <Bell size={14} />}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 12.5 }}>{n.title}</div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>{n.date}</div>
+                      </div>
+                      <span style={{ fontSize: 10, padding: '1px 8px', borderRadius: 10, background: priBg, color: priColor, whiteSpace: 'nowrap', alignSelf: 'center' }}>{n.priority}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div className="content-card" style={{ padding: '1rem' }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 0.75rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Calendar size={16} /> Today's Events
+            </h3>
+            {hrEvents.filter(e => e.startDate === new Date().toISOString().split('T')[0] || e.status === 'scheduled').slice(0, 10).length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: 13, padding: 12 }}>No events today.</p>
+            ) : (
+              hrEvents.filter(e => e.startDate === new Date().toISOString().split('T')[0] || e.status === 'scheduled').slice(0, 10).map(e => (
+                <div key={e.id} style={{ display: 'flex', gap: 10, padding: '7px 0', borderBottom: '1px solid var(--border-color)', fontSize: 13 }}>
+                  <Calendar size={14} style={{ color: '#2563EB', flexShrink: 0, marginTop: 2 }} />
+                  <div style={{ flex: 1 }}><div style={{ fontWeight: 600, fontSize: 12.5 }}>{e.title}</div><div style={{ color: 'var(--text-muted)', fontSize: 11 }}>{e.startDate} {e.startTime} &middot; {e.eventType?.replace(/_/g, ' ')}</div></div>
+                  <span className={`badge ${e.status === 'scheduled' ? 'pending' : e.status === 'in_progress' ? 'average' : e.status === 'completed' ? 'excellent' : 'high'}`} style={{ fontSize: 10 }}>{e.status?.replace(/_/g, ' ')}</span>
+                </div>
+              ))
             )}
           </div>
         </div>

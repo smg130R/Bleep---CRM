@@ -12,7 +12,6 @@ const titleMap = {
   prospects: { title: 'Prospects', subtitle: 'Registrations & conversions' },
   'follow-ups': { title: 'Follow-ups', subtitle: 'Pending callbacks & lead statuses' },
   reports: { title: 'Reports', subtitle: 'Visual analytics & conversion ratios' },
-  'hr-desk': { title: 'HR Desk', subtitle: 'Announcements, leaves & milestones' },
   settings: { title: 'Settings', subtitle: 'Integrations & KPI targets' },
 };
 
