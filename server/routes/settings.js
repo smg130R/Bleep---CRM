@@ -51,7 +51,7 @@ router.get('/bdas', authenticateToken, requireRoles(['admin', 'ops_head', 'hr'])
       .eq('status', 'active')
       .order('name');
 
-    if (req.user.role !== 'admin') {
+    if (!['admin', 'hr'].includes(req.user.role)) {
       query = query.eq('teamId', req.user.teamId);
     }
 

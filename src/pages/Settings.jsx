@@ -241,55 +241,57 @@ const Settings = ({ showToast }) => {
         )}
       </div>
 
-      <div className="content-card" style={{ maxWidth: '700px' }}>
-        <div className="card-header" style={{ marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Link size={18} /> Remove Master Sheet
-          </h3>
-        </div>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-          Clearing a team's master sheet URL disconnects the Google Sheet integration.
-        </p>
-
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <select
-            value={selectedTeam}
-            onChange={(e) => setSelectedTeam(e.target.value)}
-            style={{
-              flex: 1, minWidth: '250px', padding: '0.5rem 0.75rem',
-              border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)',
-              background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.85rem',
-            }}
-          >
-            <option value="">— Select a Team —</option>
-            {teams.map(t => (
-              <option key={t.id} value={t.id}>
-                {t.name} {t.leadName ? `(Lead: ${t.leadName})` : ''}
-              </option>
-            ))}
-          </select>
-          <button
-            className="btn btn-danger"
-            onClick={() => handleClearMasterSheet(selectedTeam)}
-            disabled={!selectedTeam || clearingTeam === selectedTeam}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}
-          >
-            {clearingTeam === selectedTeam ? (
-              <Loader size={14} className="animate-spin" />
-            ) : (
-              <Trash2 size={14} />
-            )}
-            Clear Master Sheet
-          </button>
-        </div>
-
-        {selectedTeam && teams.find(t => t.id === selectedTeam) && (
-          <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <ExternalLink size={12} />
-            Team: <strong>{teams.find(t => t.id === selectedTeam)?.name}</strong>
+      {user?.role !== 'hr' && (
+        <div className="content-card" style={{ maxWidth: '700px' }}>
+          <div className="card-header" style={{ marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Link size={18} /> Remove Master Sheet
+            </h3>
           </div>
-        )}
-      </div>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+            Clearing a team's master sheet URL disconnects the Google Sheet integration.
+          </p>
+
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <select
+              value={selectedTeam}
+              onChange={(e) => setSelectedTeam(e.target.value)}
+              style={{
+                flex: 1, minWidth: '250px', padding: '0.5rem 0.75rem',
+                border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.85rem',
+              }}
+            >
+              <option value="">— Select a Team —</option>
+              {teams.map(t => (
+                <option key={t.id} value={t.id}>
+                  {t.name} {t.leadName ? `(Lead: ${t.leadName})` : ''}
+                </option>
+              ))}
+            </select>
+            <button
+              className="btn btn-danger"
+              onClick={() => handleClearMasterSheet(selectedTeam)}
+              disabled={!selectedTeam || clearingTeam === selectedTeam}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}
+            >
+              {clearingTeam === selectedTeam ? (
+                <Loader size={14} className="animate-spin" />
+              ) : (
+                <Trash2 size={14} />
+              )}
+              Clear Master Sheet
+            </button>
+          </div>
+
+          {selectedTeam && teams.find(t => t.id === selectedTeam) && (
+            <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ExternalLink size={12} />
+              Team: <strong>{teams.find(t => t.id === selectedTeam)?.name}</strong>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
