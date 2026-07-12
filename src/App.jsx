@@ -109,7 +109,7 @@ const MainApp = () => {
           {activePage === 'prospects' && <Prospects showToast={showToast} />}
           {activePage === 'follow-ups' && <Followups showToast={showToast} />}
           {activePage === 'reports' && <Reports dateFilter={dateFilter} showToast={showToast} />}
-          {activePage === 'hr-desk' && <HrDesk showToast={showToast} />}
+          {activePage.startsWith('hr-') && <HrDesk showToast={showToast} activeHrTab={activePage} />}
           {activePage === 'settings' && <Settings showToast={showToast} />}
           {activePage === 'team-lead-workspace' && <TeamLeadWorkspace showToast={showToast} />}
         </main>
